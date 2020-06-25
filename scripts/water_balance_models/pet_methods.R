@@ -97,7 +97,7 @@ PET.MH <- function(WB.params) {
   R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
   press <- ElevToPress(WB.params$E)
   
-  lambda <- 2.501 - 0.002361*T.m          # latent heat of vaporization; MJ / kg
+  lambda <- 2.45 #REVISED formerly had as 2.501 - 0.002361*T.m  but don't know where this was from , now using 2.45 from Bakhtiari et al. 2011.       # latent heat of vaporization; MJ / kg
   gamma  <- 0.00163*press/lambda          
   delta <- SatVapPresSlope(T.m)
   PET.m  <- (0.7/lambda) * (delta/(delta+gamma)) * R.m * monthlengths()
@@ -113,7 +113,7 @@ PET.Mak <- function(WB.params) {
   R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
   press <- ElevToPress(WB.params$E)
   
-  lambda <- 2.501 - 0.002361*T.m          # latent heat of vaporization; MJ / kg
+  lambda <- 2.45 #REVISED formerly had as 2.501 - 0.002361*T.m  but don't know where this was from , now using 2.45 from Bakhtiari et al. 2011.       # latent heat of vaporization; MJ / kg
   gamma  <- 0.00163*press/lambda          
   delta <- SatVapPresSlope(T.m)
   PET.m  <- ((0.61/lambda) * (delta/(delta+gamma)) * R.m - 0.12) * monthlengths() 
@@ -123,14 +123,21 @@ PET.Mak <- function(WB.params) {
   return(PET.m)  
 }
 
-#Makkinik-Hansen, as adjusted by Cristea at al. 2013 assuming 2.25m/s wind
+#Makkinik-Hansen, as adjusted by Cristea at al. 2013 assuming average Sierra Nevada monthly wind according to NLDAS
 PET.MHadj <- function(WB.params) {
   
   T.m <- WB.params$T.m
   R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
   press <- ElevToPress(WB.params$E)
   RH <- WB.params$RH.m
-  wind <- 2.25 # 2m wind speed; calc from NREL map sierra average, converted to 2m with Cristea formula
+  
+  # REVISED: new wind speed based on NLDAS average for Sierra
+  hw=10 # height of wind measurements 
+  wind <- c(0.94,1.09,1.41,1.81,1.86,1.89,2.04,2.17,1.26,0.80,1.02,0.96)
+  wind <- wind*(4.87/log(67*hw-5.42))  # convert to wind height at 2m
+  
+  # replaced this old wind code: wind <- 2.25 # 2m wind speed; calc from NREL map sierra average, converted to 2m with Cristea formula
+  
   Cadj <- 1.036 - 0.527*(RH/100) + 0.041 * wind
   lambda <- 2.501 - 0.002361*T.m          # latent heat of vaporization; MJ / kg
   gamma  <- 0.00163*press/lambda          
@@ -140,7 +147,7 @@ PET.MHadj <- function(WB.params) {
   
   #cat("\nPET.MHadj: ",PET.m[7])
   return(PET.m)  
-}  
+}   
 
 #Valiantzas 2013
 PET.Vali <- function(WB.params) {
