@@ -1,7 +1,8 @@
 source("scripts/water_balance_models/point_wb.R")
+source("scripts/water_balance_models/wb_utils.R")
 source("scripts/water_balance_models/dobrowski_wb.R")
 
-set_wb <- function(in.data, out.name=NULL, PET.methods, PET.mods, AET.methods, monthly=FALSE, ret.soil.water=FALSE, dobr.wb = FALSE) {
+set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, ret.soil.water=FALSE, dobr.wb = FALSE) {
 
   nplots <- nrow(in.data)
   if(length(unique(in.data$ID)) != nplots)
