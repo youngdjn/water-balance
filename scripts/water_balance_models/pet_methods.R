@@ -214,7 +214,7 @@ PET.PT <- function(WB.params) {
   
   
   
-  
+  ### Compute cloudiness using, for clear-sky, empirical latitude-based (following Dobrowski) and for true-sky, NLDAS
   
   # Calculate potential max solar radiation or clear sky radiation	
   daysinmonth=c(31,28,31,30,31,30,31,31,30,31,30,31)
