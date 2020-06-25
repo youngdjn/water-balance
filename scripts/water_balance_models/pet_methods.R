@@ -8,72 +8,6 @@
 
 #source("utils.R")
 
-PET.Thorn <- function(WB.params)
-{
-  
-  T.m     <- WB.params$T.m
-  T.m.frz <- T.m < 0
-  T.m.hot <- T.m >= 26.5
-  
-  L <- as.radians(WB.params$L)
-  I <- sum((T.m / 5)[!T.m.frz]^1.514)
-  a <- 6.75e-7 * I^3 - 7.71e-5 * I^2 + 1.79e-2 * I + 0.49
-  
-  PET.m          <- 16 * (10 * T.m / I)^a                            #    0-26.5 degrees
-  PET.m[T.m.frz] <- 0                                                #  < 0 degrees
-  PET.m[T.m.hot] <- (-415.85 + 32.24 * T.m - 0.43 * T.m^2)[T.m.hot]  # >= 26.5 degrees
-  
-  #cat("\nPET.Thorn: ",PET.m[7])
-  
-  return(PET.m * (monthlengths() / 30) * (daylength(L) / 12))
-}
-
-PET.Ding <- function(WB.params)
-{
-  T.m <- WB.params$T.m
-  L   <- as.radians(WB.params$L)
-  
-  # saturation vapor pressure
-  Vsp <- as.numeric(0.611 * exp((17.3 * T.m) / (T.m + 237.3)))
-  
-  PET.m <- as.numeric(29.8 * daylength(L) * monthlengths() * (Vsp / (T.m + 273.2)))
-  #cat("\nPET.Ding: ",PET.m[7])
-  
-  return(PET.m)
-}
-
-PET.Turc <- function(WB.params)
-{
-  T.m <- WB.params$T.m
-  R.m <- WB.params$R.m
-  
-  R.m <- (R.m * 0.08598)/monthlengths() # Convert from Wh/sq. m/month to cal/sq. cm/day
-  
-  RH.term <- ifelse((WB.params$RH.m < 50),(1 + ((50 - WB.params$RH.m) / 70)),1)
-  
-  PET.m <- 0.013 * (T.m / (T.m + 15)) * (R.m + 50) * RH.term * monthlengths()
-  PET.m[T.m < 0] <- 0
-  
-  #cat("\nPET.Turc2nlhvap: ",PET.m[7])
-  
-  return(PET.m)
-}
-
-# PET.Turc2lhvap <- function(WB.params)
-# {
-#   T.m <- WB.params$T.m
-#   R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-#   lambda <- 2.501 - 0.002361*T.m          # latent heat of vaporization; MJ / kg
-#   
-#   RH.term <- ifelse((WB.params$RH.m < 50),(1 + ((50 - WB.params$RH.m) / 70)),1)
-#   
-#   PET.m <- 0.013 * (T.m / (T.m + 15)) * ((23.8856*R.m + 50)/lambda) * RH.term * monthlengths()
-#   PET.m[PET.m < 0] <- 0
-#   
-#   #cat("\nPET.Turc2lhvap: ",PET.m[7])
-#   
-#   return(PET.m)
-# }
 
 #PET.PriestleyTaylor <- function(WB.params) {
 #  T.m <- WB.params$T.m
@@ -91,115 +25,6 @@ PET.Turc <- function(WB.params)
 #	return(PET.m)
 #}
 
-#Makkinik-Hansen, as presented in Cristea et al. 2013
-PET.MH <- function(WB.params) {
-  T.m <- WB.params$T.m
-  R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-  press <- ElevToPress(WB.params$E)
-  
-  lambda <- 2.45 #REVISED formerly had as 2.501 - 0.002361*T.m  but don't know where this was from , now using 2.45 from Bakhtiari et al. 2011.       # latent heat of vaporization; MJ / kg
-  gamma  <- 0.00163*press/lambda          
-  delta <- SatVapPresSlope(T.m)
-  PET.m  <- (0.7/lambda) * (delta/(delta+gamma)) * R.m * monthlengths()
-  PET.m[PET.m < 0] <- 0
-  
-  #cat("\nPET.MH: ",PET.m[7])
-  return(PET.m)
-}
-
-#Makkinik 1957
-PET.Mak <- function(WB.params) {
-  T.m <- WB.params$T.m
-  R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-  press <- ElevToPress(WB.params$E)
-  
-  lambda <- 2.45 #REVISED formerly had as 2.501 - 0.002361*T.m  but don't know where this was from , now using 2.45 from Bakhtiari et al. 2011.       # latent heat of vaporization; MJ / kg
-  gamma  <- 0.00163*press/lambda          
-  delta <- SatVapPresSlope(T.m)
-  PET.m  <- ((0.61/lambda) * (delta/(delta+gamma)) * R.m - 0.12) * monthlengths() 
-  PET.m[PET.m < 0] <- 0
-  
-  #cat("\nPET.Mak: ",PET.m[7])
-  return(PET.m)  
-}
-
-#Makkinik-Hansen, as adjusted by Cristea at al. 2013 assuming average Sierra Nevada monthly wind according to NLDAS
-PET.MHadj <- function(WB.params) {
-  
-  T.m <- WB.params$T.m
-  R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-  press <- ElevToPress(WB.params$E)
-  RH <- WB.params$RH.m
-  
-  # REVISED: new wind speed based on NLDAS average for Sierra
-  hw=10 # height of wind measurements 
-  wind <- c(0.94,1.09,1.41,1.81,1.86,1.89,2.04,2.17,1.26,0.80,1.02,0.96)
-  wind <- wind*(4.87/log(67*hw-5.42))  # convert to wind height at 2m
-  
-  # replaced this old wind code: wind <- 2.25 # 2m wind speed; calc from NREL map sierra average, converted to 2m with Cristea formula
-  
-  Cadj <- 1.036 - 0.527*(RH/100) + 0.041 * wind
-  lambda <- 2.501 - 0.002361*T.m          # latent heat of vaporization; MJ / kg
-  gamma  <- 0.00163*press/lambda          
-  delta <- SatVapPresSlope(T.m)
-  PET.m  <- (Cadj/lambda) * (delta/(delta+gamma)) * R.m * monthlengths()
-  PET.m[PET.m < 0] <- 0
-  
-  #cat("\nPET.MHadj: ",PET.m[7])
-  return(PET.m)  
-}   
-
-#Valiantzas 2013
-PET.Vali <- function(WB.params) {
-  R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-  T.m <- WB.params$T.m
-  RH.m <- WB.params$RH.m
-  Lat.rad <- as.radians(WB.params$L)
-  a <- ifelse(T.m <= -9.5,0.01,T.m+9.5) # do not let the term being rooted be negative
-  PET.m <- (0.0393*R.m*sqrt(a)-0.19*(R.m^0.6)*(Lat.rad^0.15)+0.078*(T.m+20)*(1-(RH.m/100)))*monthlengths()
-  PET.m[PET.m < 0] <- 0
-  #cat("\nPET.Vali: ",PET.m[7])
-  return(PET.m)
-}
-
-#Copais
-PET.Cop <- function(WB.params) {
-  
-  R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-  T.m <- WB.params$T.m
-  RH.m <- WB.params$RH.m
-  
-  m1 <- 0.057
-  m2 <- 0.277
-  m3 <- 0.643
-  m4 <- 0.0124
-  
-  C1 <- 0.6416 - 0.00784*RH.m + 0.372*R.m - 0.00264*R.m*RH.m
-  C2 <- -0.0033 + 0.00812*T.m + 0.0101*R.m + 0.00584*R.m*T.m
-  
-  PET.m <- (m1 + m2*C2 + m3*C1 + m4*C1*C2) * monthlengths()
-  
-  PET.m[PET.m < 0] <- 0
-  
-  #cat("\nPET.cop: ",PET.m[7])
-  return(PET.m)
-}
-
-PET.Har <- function(WB.params) {
-  R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-  T.m <- WB.params$T.m
-  
-  PET.m <- 0.0135 * 0.408*R.m*(T.m+17.8) * monthlengths()
-  
-  PET.m[PET.m < 0] <- 0
-  
-  #cat("\nPET.har: ",PET.m[7])
-  return(PET.m)
-}
-
-PET.BCM <- function(WB.params) {
-  return(WB.params$PET.BCM.m)
-}
 
 PET.PT <- function(WB.params) {
   
@@ -220,8 +45,8 @@ PET.PT <- function(WB.params) {
   ea.m <- 0.6108 * exp((17.27*Tdew.m)/(Tdew.m + 237.3))
   
   
-  
-  ### Compute cloudiness using, for clear-sky, empirical latitude-based (following Dobrowski) and for true-sky, NLDAS
+  ## Begin code for computing Rn.m (net rad, which is incoming minus outgoing, from Dobrowski)
+  ### Compute cloudiness using, for clear-sky, empirical latitude- and date-based (following Dobrowski) and for true-sky, NLDAS
   
   # Calculate potential max solar radiation or clear sky radiation	
   daysinmonth=c(31,28,31,30,31,30,31,31,30,31,30,31)
@@ -262,7 +87,9 @@ PET.PT <- function(WB.params) {
   
   Rnl.m <- 4.901e-9 * fcd.m * (0.34-0.14*sqrt(ea.m)) * ((Tmax.m.k^4 + Tmin.m.k^4)/2)
   
-  Rn.m <- Rns.m - Rnl.m  
+  Rn.m <- Rns.m - Rnl.m 
+  
+  ## End code to get Rn.m
   
   lambda <- 2.45
   s <- SatVapPresSlope(T.m)
