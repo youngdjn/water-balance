@@ -96,5 +96,7 @@ Point_WB <- function(WB.params, PET.methods, PET.mods, AET.methods, monthly=TRUE
     Deficit <- lapply(Deficit, sum)
   }
   
-  return(list(PET=PET, AET=AET, Deficit=Deficit))
+  all_vals = data.frame("PET" = PET, "AET" = AET, "Deficit" = Deficit) # since there are multiple values for each of these, they will be appended to the prefix, like "PET._"
+  
+  return(all_vals)
 }

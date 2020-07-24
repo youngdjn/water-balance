@@ -2,6 +2,7 @@ source("scripts/water_balance_models/point_wb.R")
 source("scripts/water_balance_models/wb_utils.R")
 source("scripts/water_balance_models/dobrowski_wb.R")
 
+
 set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, dobr.wb = FALSE) {
 
   nplots <- nrow(in.data)
@@ -41,30 +42,20 @@ set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, d
   
   #this is the predicted soil whc from the regression
   S.max.reg <- -3.618513 - 0.017472*E + 3.309366*L
-  
-  AET = data.frame()
-  PET = data.frame()
-  Deficit = data.frame()
-  
-  browser()
+
+  points_data = data.frame()
   
   for(i in 1:nplots) {
     
-    #run for cc100
     params <- list(T.m=T.m[i,], P.m=P.m[i,], R.m=R.m[i,], R.nldas.m=R.nldas.m[i,], L=L[i], E=E[i], S.max=150, PET.BCM.m=PET.BCM.m[i,], Tmin.m=Tmin.m[i,], Tmax.m=Tmax.m[i,], wind.m=wind.m[i,],month=month.param,Tdew.m=Tdew.m[i,])
-    
     output <- Point_WB(params, PET.methods, PET.mods, AET.methods, monthly=monthly)
     
-    PET = bind_rows(PET, output$PET)
-    AET = bind_rows(AET, output$AET)
-    Deficit = bind_rows(Deficit, output$Deficit)
+    points_data = bind_rows(points_data,
+                            output)
     
-
-    
-    cat(paste("\rFinished plot number:",i," of ",nplots))
+    cat("Completed point ",i,"of",nplots,"\r")
     
   }
-  
   if(monthly) {
     methods.mult <- 12
   } else {
@@ -72,12 +63,8 @@ set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, d
   }
 
   
-  rownames(PET) <- rownames(AET) <- rownames(Deficit) <- in.data$ID
+  #rownames(points_data) <- in.data$ID
   
-  names(PET) <- paste0("PET.",names(PET))
-  names(AET) <- paste0("AET.",names(AET))
-  names(Deficit) <- paste0("Deficit.",names(Deficit))
-
   ##### Also compute Dobrowski WB if specified ###
   if(dobr.wb) {
     
@@ -115,18 +102,12 @@ set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, d
     AET.dob <- as.data.frame(AET.dob)
     Deficit.dob <- as.data.frame(Deficit.dob)
     
-    rownames(PET.dob) <- rownames(AET.dob) <- rownames(Deficit.dob) <- in.data$ID
+    #rownames(PET.dob) <- rownames(AET.dob) <- rownames(Deficit.dob) <- in.data$ID
     
   }
-
   
   # merge dobrowski and non-dobrowski
-  
-  PET.all <- cbind(PET,PET.dob)
-  AET.all <- cbind(AET,AET.dob)
-  Deficit.all <- cbind(Deficit,Deficit.dob)
-  
-  wb_output = cbind(PET.all, AET.all, Deficit.all)
+  wb_output = bind_cols(points_data,PET.dob,AET.dob,Deficit.dob)
   wb_output$ID = in.data$ID
   
   return(wb_output)

@@ -52,7 +52,7 @@ id.layer <- wb.inputs[["ID"]]
 
 ## Add all the modeled WB values/layers to the WB inputs DF so that outputs are stacked with inputs
 ## arrange the wb.nonwb DF with IDs in the same order as the raster cells
-order <- match(values(id.layer),d$ID)
+order <- match(raster::values(id.layer),d$ID)
 d.rast.compare <- d[order,]
 
 for (i in 1:ncol(d.rast.compare)) {
