@@ -46,7 +46,7 @@ source("scripts/water_balance_models/pet_methods.R")
 source("scripts/water_balance_models/pet_mods.R")
 source("scripts/water_balance_models/aet_methods.R")
 
-Point_WB <- function(WB.params, PET.methods, PET.mods, AET.methods, monthly=TRUE, ret.soil.water=FALSE)
+Point_WB <- function(WB.params, PET.methods, PET.mods, AET.methods, monthly=TRUE)
 {
   
   PET <- lapply(PET.methods, function(x)
@@ -73,7 +73,7 @@ Point_WB <- function(WB.params, PET.methods, PET.mods, AET.methods, monthly=TRUE
     lapply(AET.methods, function(aet)
     {
       #print(paste("Running ","AET", aet, sep=" "))
-      do.call(paste("AET", aet, sep="."), list(PET.m=pet, WB.params=WB.params, ret.soil.water=ret.soil.water))
+      do.call(paste("AET", aet, sep="."), list(PET.m=pet, WB.params=WB.params))
     })
   }), recursive=F)
   if(length(AET.methods) == 1)

@@ -27,7 +27,7 @@ AET.methods <- "Wil150mm"
 
 wb.inputs.df.complete <- wb.inputs.df[complete.cases(wb.inputs.df),]
 
-wb <- set_wb(wb.inputs.df.complete, PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, ret.soil.water=TRUE, dobr.wb = TRUE)
+wb <- set_wb(wb.inputs.df.complete, PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE)
 
 
 ### pull together the output of the different wb methods and write to a file

@@ -2,7 +2,7 @@ source("scripts/water_balance_models/point_wb.R")
 source("scripts/water_balance_models/wb_utils.R")
 source("scripts/water_balance_models/dobrowski_wb.R")
 
-set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, ret.soil.water=FALSE, dobr.wb = FALSE) {
+set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, dobr.wb = FALSE) {
 
   nplots <- nrow(in.data)
   if(length(unique(in.data$ID)) != nplots)
@@ -46,12 +46,14 @@ set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, r
   PET = data.frame()
   Deficit = data.frame()
   
+  browser()
+  
   for(i in 1:nplots) {
     
     #run for cc100
     params <- list(T.m=T.m[i,], P.m=P.m[i,], R.m=R.m[i,], R.nldas.m=R.nldas.m[i,], L=L[i], E=E[i], S.max=150, PET.BCM.m=PET.BCM.m[i,], Tmin.m=Tmin.m[i,], Tmax.m=Tmax.m[i,], wind.m=wind.m[i,],month=month.param,Tdew.m=Tdew.m[i,])
     
-    output <- Point_WB(params, PET.methods, PET.mods, AET.methods, monthly=monthly, ret.soil.water=ret.soil.water)
+    output <- Point_WB(params, PET.methods, PET.mods, AET.methods, monthly=monthly)
     
     PET = bind_rows(PET, output$PET)
     AET = bind_rows(AET, output$AET)

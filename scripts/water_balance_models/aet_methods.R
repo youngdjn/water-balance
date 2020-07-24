@@ -16,7 +16,7 @@
 
 #source("utils.R")
 
-AET.Wil <- function(PET.m, WB.params, ret.soil.water=FALSE)
+AET.Wil <- function(PET.m, WB.params)
 {
   T.m   <- WB.params$T.m
   P.m   <- WB.params$P.m
@@ -112,15 +112,12 @@ AET.Wil <- function(PET.m, WB.params, ret.soil.water=FALSE)
   AET.m <- P.r + M - delta.W - S
   AET.m[AET.m > PET.m] <- PET.m[AET.m > PET.m]
   
-  if(ret.soil.water==TRUE) {
-    return(W.30s)
-  } else {
-    return(AET.m)
-  }
+
+  return(AET.m)
 }
 
 
-AET.Wil150mm <- function(PET.m, WB.params, ret.soil.water=FALSE) {
+AET.Wil150mm <- function(PET.m, WB.params) {
   WB.params$S.max <- 150
-  return(AET.Wil(PET.m, WB.params, ret.soil.water))
+  return(AET.Wil(PET.m, WB.params))
 }
