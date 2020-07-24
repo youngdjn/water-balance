@@ -60,8 +60,10 @@ for (i in 1:ncol(d.rast.compare)) {
   name <- names(d.rast.compare)[i]
   
   wb.inputs[[name]] <- col
-  names(wb.inputs)[length(names(wb.inputs))] <- name #set the last layer (the one just created) to the correct name
-  
+  if(!(name %in% names(wb.inputs))) { # if the layer we just added is not a name in the raster, it was just added at the end with a genericc name, so rename it
+    names(wb.inputs)[length(names(wb.inputs))] <- name #set the last layer (the one just created) to the correct name
+  }
+    
 }
 
 d.rast <- wb.inputs
