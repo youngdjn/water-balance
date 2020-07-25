@@ -116,12 +116,19 @@ thin_factor <- round(full/thin_to)
 d_train <- d_train[seq(1,nrow(d_train),by=thin_factor),]
 
 
+## calc type presences
+d_train = d_train %>%
+  mutate(mhw = cv_text == "MHW",
+         mch = cv_text == "MCH",
+         smc = cv_text == "SMC")
+
+
 #### Fit multinomial regression models ####
 library(nnet)
 
 m.1 <- nnet::multinom(cv_text~(AET.Dobr.cc025+Deficit.Dobr.cc025),data=d_train,maxit=10000)
-m_dob025 <- nnet::multinom(cv_text~(scale(AET.Dobr.cc025)+scale(Deficit.Dobr.cc025)+I(scale(AET.Dobr.cc025)^2)+I(scale(Deficit.Dobr.cc025)^2)),data=d_train,maxit=10000)
-m_dob100 <- nnet::multinom(cv_text~(scale(AET.Dobr.cc100)+scale(Deficit.Dobr.cc100)+I(scale(AET.Dobr.cc100)^2)+I(scale(Deficit.Dobr.cc100)^2)),data=d_train,maxit=10000)
+m_dob025 <- nnet::multinom(cv_text~((AET.Dobr.cc025)+(Deficit.Dobr.cc025)+I((AET.Dobr.cc025)^2)+I((Deficit.Dobr.cc025)^2)),data=d_train,maxit=10000)
+m_dob100 <- nnet::multinom(cv_text~((AET.Dobr.cc100)+(Deficit.Dobr.cc100)+I((AET.Dobr.cc100)^2)+I((Deficit.Dobr.cc100)^2)),data=d_train,maxit=10000)
 m_wil025 <- nnet::multinom(cv_text~(scale(AET.PT.cc025.Wil150mm)+scale(Deficit.PT.cc025.Wil150mm)+I(scale(AET.PT.cc025.Wil150mm)^2)+I(scale(Deficit.PT.cc025.Wil150mm)^2)),data=d_train,maxit=10000)
 m_wil100 <- nnet::multinom(cv_text~(scale(AET.PT.STD.Wil150mm)+scale(Deficit.PT.STD.Wil150mm)+I(scale(AET.PT.STD.Wil150mm)^2)+I(scale(Deficit.PT.STD.Wil150mm)^2)),data=d_train,maxit=10000)
 m_tpp <- nnet::multinom(cv_text~((scale(tmean_annual))+(scale(ppt_annual))),data=d_train,maxit=10000)
@@ -131,10 +138,10 @@ m_ttp2 <- nnet::multinom(cv_text~(scale(tmean_annual)*scale(ppt_annual))+I(scale
 
 
 #### Just predict montane hardwood
-m_dob025 <- nnet::multinom(cv_text~(scale(AET.Dobr.cc025)+scale(Deficit.Dobr.cc025)+I(scale(AET.Dobr.cc025)^2)+I(scale(Deficit.Dobr.cc025)^2)),data=d_train,maxit=10000)
-
-
-
+library(mgcv)
+m_dob025_mhw <- gam(cv_text == "MHW" ~ s(AET.Dobr.cc025, k=3) + s(Deficit.Dobr.cc025, k=3), data=d_train, family="binomial")
+m_dob100_mhw <- gam(cv_text == "MHW" ~ s(AET.Dobr.cc100, k=3) + s(Deficit.Dobr.cc100, k=3), data=d_train, family="binomial")
+m_tpp_mhw = gam(cv_text == "MHW" ~ s(ppt_annual, k=3) + s(tmean_annual, k=3), data=d_train, family="binomial")
 
 
 
@@ -152,6 +159,9 @@ d$p_tpp = predict(m_tpp,newdat=d)
 d$p_ttp = predict(m_ttp,newdat=d)
 d$p_tpp2 = predict(m_tpp2,newdat=d)
 d$p_ttp2 = predict(m_ttp2,newdat=d)
+
+d$p_dob025_mhw = predict(m_dob025_mhw, newdata=d, type="response")
+d$p_dob100_mhw = predict(m_dob100_mhw, newdata=d, type = "response")
 
 ## whrtype back to numeric code
 d$p_dob025_num <- plyr::mapvalues(d$p_dob025,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
@@ -211,6 +221,14 @@ names(p_tpp2_num) = "p_tpp2"
 p_ttp2_num = d_mod[[1]] * 0
 values(p_ttp2_num) = d$p_ttp2_num
 names(p_ttp2_num) = "p_ttp2"
+
+p_dob025_mhw = d_mod[[1]] * 0
+values(p_dob025_mhw) = d$p_dob025_mhw %>% as.vector
+names(p_dob025_mhw) = "p_dob025_mhw"
+
+p_dob100_mhw = d_mod[[1]] * 0
+values(p_dob100_mhw) = d$p_dob100_mhw %>% as.vector
+names(p_dob100_mhw) = "p_dob100_mhw"
 
 d_fullstack = stack(d_mod,p_dob025_num,p_dob100_num,p_wil025_num,p_wil100_num, p_tpp_num, p_ttp_num, p_ttp2_num, p_tpp2_num)
 
