@@ -1,64 +1,40 @@
 library(raster)
 library(sf)
 library(tidyverse)
+library(viridis)
+library(ggthemes)
+library(ggspatial)
+library(mgcv)
 
-d = brick("data/wb_output/rasters/landscape_wb_inputs_outputs.grd")
+d_rast = brick("data/wb_output/rasters/landscape_wb_inputs_outputs.grd")
 cv.type <- raster("data/calveg_clipped/calveg_clipped_raster_whrtype.tif")
 cv_crosswalk <- read.csv("data/calveg_clipped/type_conversion_table.csv",header=TRUE,stringsAsFactors=FALSE)
 tuol_mask <- st_read("data/tuolomne_mask/tuolomne_grid_mask.shp")
 
-
 ### Get the env data synced to the calveg data (which first needs to be aggregated to the scale of analysis -- 240 m)
 set.seed(1)
-cv_project = projectRaster(cv.type,to = d, alignOnly=TRUE, method="ngb")
+cv_project = projectRaster(cv.type,to = d_rast, alignOnly=TRUE, method="ngb")
 cv_agg = aggregate(cv_project,fact = 240/30, fun=modal)
-d = projectRaster(d,cv_agg)
+d_rast = projectRaster(d_rast,cv_agg)
 
-cv = crop(cv_agg,d)
-d = crop(d,cv_agg)
+cv = crop(cv_agg,d_rast)
+d_rast = crop(d,cv_agg)
 
-d_mod = stack(d,cv)
+d_mod = stack(d_rast,cv)
 
-d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d)))
-d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d)))
+d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d_rast)))
+d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d_rast)))
 
-
-index_layer = d_mod[[1]]*0
-names(index_layer) = "index_mod"
-values(index_layer) = 1:ncell(index_layer)
-d_mod = stack(d_mod,index_layer)
-
-### Create sampling points
-bbox_fun <- function(x1,y1,size) { # give it the top-left corner
-  x2 <- x1+size
-  y2 <- y1-size
-  bbox <- st_polygon(list(cbind(c(x1,x2,x2,x1,x1),c(y1,y1,y2,y2,y1))))
-}
-
-bbox1 <- bbox_fun(-32500,-12500,10000)
-bbox2 <- bbox_fun(2500,-10000,10000)
-bbox3 <- bbox_fun(36000,-4500,10000)
-bboxes <- st_sfc(bbox1,bbox2,bbox3,crs=3310) %>% st_as_sf
-
+# index_layer = d_mod[[1]]*0
+# names(index_layer) = "index_mod"
+# values(index_layer) = 1:ncell(index_layer)
+# d_mod = stack(d_mod,index_layer)
 
 ### alternate approach to bboxes
 grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE)
 plots = grid %>% st_buffer(1000) %>% st_as_sf
 bboxes = plots
-
-
-# ## second four instead of 3
-# bbox1 <- bbox_fun(-34500,-15000,10000)
-# bbox2 <- bbox_fun(-9000,-13000,10000)
-# bbox3 <- bbox_fun(20000,-5000,10000)
-# bbox4 <- bbox_fun(46000,-1500,10000)
-# bboxes <- st_sfc(bbox1,bbox2,bbox3,bbox4,crs=3310) %>% st_sf()
-
-
 bboxes$training = 1:nrow(bboxes)
-tuol_mask$tuol_mask = 1
-
-
 
 
 ## get bbox overlap yes/no
@@ -67,194 +43,173 @@ d_mod = stack(d_mod,bbox_overlap)
 names(d_mod)[length(names(d_mod))] = "training"
 
 # get whether in tuolomne buffer
+tuol_mask$tuol_mask = 1
 tuol_overlap = rasterize(tuol_mask %>% st_transform(crs(d_mod)),field="tuol_mask",d_mod[[1]])
 d_mod = stack(d_mod,tuol_overlap)
 names(d_mod)[length(names(d_mod))] = "tuol_overlap"
-
 
 ## Convert raster to sf
 d_mod_sf = d_mod %>% as("SpatialPointsDataFrame") %>% as("sf") #     as.data.frame(d_mod)
 d_mod_sf$index_df = 1:nrow(d_mod_sf)
 
 d_mod_sf = d_mod_sf %>%
-  rename(cv = "calveg_clipped_raster_whrtype")
-  filter(!is.na(AET.PT.STD.Wil150mm) & !is.na(cv))
+  rename(cv = "calveg_clipped_raster_whrtype") %>%
+  filter(!is.na(tuol_overlap))
 
-d = d_mod_sf
+d = d_mod_sf %>% st_transform(3310)
+d$x = st_coordinates(d)[,1]
+d$y = st_coordinates(d)[,2]
+
 
 ### Compute annual temp and precip values
 d = d %>%
   mutate(tmean_annual = tmean.01+tmean.02+tmean.03+tmean.04+tmean.05+tmean.06+tmean.07+tmean.08+tmean.09+tmean.10+tmean.11+tmean.12) %>%
   mutate(ppt_annual = ppt.01+ppt.02+ppt.03+ppt.04+ppt.05+ppt.06+ppt.07+ppt.08+ppt.09+ppt.10+ppt.11+ppt.12)
 
+### remove vals we don't need, standardize others
+d = d %>%
+  dplyr::select(rad.03,ID,starts_with("AET"),starts_with("Deficit"),cv,training,tuol_overlap,tmean_annual,ppt_annual, x, y) %>%
+  rename(aet_wil100 = AET.PT.STD.Wil150mm,
+         aet_wil025 = AET.PT.cc025.Wil150mm,
+         aet_dob100 = AET.Dobr.cc100,
+         aet_dob025 = AET.Dobr.cc025,
+         cwd_wil100 = Deficit.PT.STD.Wil150mm,
+         cwd_wil025 = Deficit.PT.cc025.Wil150mm,
+         cwd_dob100 = Deficit.Dobr.cc100,
+         cwd_dob025 = Deficit.Dobr.cc025,
+         aet_tempppt = ppt_annual,
+         cwd_tempppt = tmean_annual) %>%
+  dplyr::select(-rad.03,-AET.PT.cc050.Wil150mm,-Deficit.PT.cc050.Wil150mm) %>%
+  mutate(ID = 1:nrow(d))
 
-### Get Calveg WHR types, and keep top 10
+
+
+### Get Calveg WHR types (text), and keep top 10
 d$cv_text = plyr::mapvalues(d$cv,cv_crosswalk$code,as.character(cv_crosswalk$val))
-
-## abundance of diff whr types in study area
-t <- table(d$cv_text)
-t2 <- t[order(t,decreasing=TRUE)]
-t2
-plot(t2)
-
-#remove lake
-types.drop <- "LAC"
-t3 <- t2[!(names(t2) %in% types.drop)]
-
-#take top 10 types
-top.whrtypes <- names(t3[1:10])
+# 
+# ## abundance of diff whr types in study area
+# t <- table(d$cv_text)
+# t2 <- t[order(t,decreasing=TRUE)]
+# t2
+# plot(t2)
+# 
+# #remove lake
+# types.drop <- "LAC"
+# t3 <- t2[!(names(t2) %in% types.drop)]
+# 
+# #take top 10 types
+# top.whrtypes <- names(t3[1:10])
 
 #convert to numeric
 top.whrtypes.numeric <- plyr::mapvalues(top.whrtypes,cv_crosswalk$val,cv_crosswalk$code)
 
-## thin to 1000 training points  ##!! need to remove?
-d_train <- d[!is.na(d$training),]
-d_train <- d_train[d_train$cv_text %in% top.whrtypes,]
-thin_to <- 1000
-full <- nrow(d_train)
-thin_factor <- round(full/thin_to)
-d_train <- d_train[seq(1,nrow(d_train),by=thin_factor),]
 
-
-## calc type presences
-d_train = d_train %>%
+## Calc type presences
+d = d %>%
   mutate(mhw = cv_text == "MHW",
          mch = cv_text == "MCH",
          smc = cv_text == "SMC")
 
 
-#### Fit multinomial regression models ####
-library(nnet)
 
-m.1 <- nnet::multinom(cv_text~(AET.Dobr.cc025+Deficit.Dobr.cc025),data=d_train,maxit=10000)
-m_dob025 <- nnet::multinom(cv_text~((AET.Dobr.cc025)+(Deficit.Dobr.cc025)+I((AET.Dobr.cc025)^2)+I((Deficit.Dobr.cc025)^2)),data=d_train,maxit=10000)
-m_dob100 <- nnet::multinom(cv_text~((AET.Dobr.cc100)+(Deficit.Dobr.cc100)+I((AET.Dobr.cc100)^2)+I((Deficit.Dobr.cc100)^2)),data=d_train,maxit=10000)
-m_wil025 <- nnet::multinom(cv_text~(scale(AET.PT.cc025.Wil150mm)+scale(Deficit.PT.cc025.Wil150mm)+I(scale(AET.PT.cc025.Wil150mm)^2)+I(scale(Deficit.PT.cc025.Wil150mm)^2)),data=d_train,maxit=10000)
-m_wil100 <- nnet::multinom(cv_text~(scale(AET.PT.STD.Wil150mm)+scale(Deficit.PT.STD.Wil150mm)+I(scale(AET.PT.STD.Wil150mm)^2)+I(scale(Deficit.PT.STD.Wil150mm)^2)),data=d_train,maxit=10000)
-m_tpp <- nnet::multinom(cv_text~((scale(tmean_annual))+(scale(ppt_annual))),data=d_train,maxit=10000)
-m_ttp <- nnet::multinom(cv_text~(scale(tmean_annual)*scale(ppt_annual)),data=d_train,maxit=10000)
-m_tpp2 <- nnet::multinom(cv_text~scale(tmean_annual)+scale(ppt_annual) + I(scale(tmean_annual)^2)+ I(scale(ppt_annual)^2),data=d_train,maxit=10000)
-m_ttp2 <- nnet::multinom(cv_text~(scale(tmean_annual)*scale(ppt_annual))+I(scale(tmean_annual)^2)*I(scale(ppt_annual)^2),data=d_train,maxit=10000)
-
-
-#### Just predict montane hardwood
-library(mgcv)
-m_dob025_mhw <- gam(cv_text == "MHW" ~ s(AET.Dobr.cc025, k=3) + s(Deficit.Dobr.cc025, k=3), data=d_train, family="binomial")
-m_dob100_mhw <- gam(cv_text == "MHW" ~ s(AET.Dobr.cc100, k=3) + s(Deficit.Dobr.cc100, k=3), data=d_train, family="binomial")
-m_tpp_mhw = gam(cv_text == "MHW" ~ s(ppt_annual, k=3) + s(tmean_annual, k=3), data=d_train, family="binomial")
+## Separate out the training dataset
+d_train <- d[!is.na(d$training),]
+d_train <- d_train[d_train$cv_text %in% top.whrtypes,]
 
 
 
-# d_train$p_dob025 = predict(m_dob025)
-# d_train$p_dob100 = predict(m_dob100)
-# d_train$p_wil025 = predict(m_wil025)
-# d_train$p_wil100 = predict(m_wil100)
+
+
+
+#### Just fit a few veg types
+m_dob025_mhw <- gam(mhw ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
+m_dob100_mhw <- gam(mhw ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
+m_wil100_mhw <- gam(mhw ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
+m_wil025_mhw <- gam(mhw ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
+m_tpp_mhw = gam(mhw ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
+
+m_dob025_mch <- gam(mch ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
+m_dob100_mch <- gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
+m_wil100_mch <- gam(mch ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
+m_wil025_mch <- gam(mch ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
+m_tpp_mch = gam(mch ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
+
+m_dob025_smc <- gam(smc ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
+m_dob100_smc <- gam(smc ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
+m_wil100_smc <- gam(smc ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
+m_wil025_smc <- gam(smc ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
+m_tpp_smc = gam(smc ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
+
+
+
+
 
 ## predict to remaining dataset
-d$p_dob025 = predict(m_dob025,newdat=d)
-d$p_dob100 = predict(m_dob100,newdat=d)
-d$p_wil025 = predict(m_wil025,newdat=d)
-d$p_wil100 = predict(m_wil100,newdat=d)
-d$p_tpp = predict(m_tpp,newdat=d)
-d$p_ttp = predict(m_ttp,newdat=d)
-d$p_tpp2 = predict(m_tpp2,newdat=d)
-d$p_ttp2 = predict(m_ttp2,newdat=d)
-
 d$p_dob025_mhw = predict(m_dob025_mhw, newdata=d, type="response")
 d$p_dob100_mhw = predict(m_dob100_mhw, newdata=d, type = "response")
+d$p_wil025_mhw = predict(m_wil025_mhw, newdata=d, type="response")
+d$p_wil100_mhw = predict(m_wil100_mhw, newdata=d, type = "response")
+d$p_tempppt_mhw = predict(m_tpp_mhw, newdata=d, type = "response")
 
-## whrtype back to numeric code
-d$p_dob025_num <- plyr::mapvalues(d$p_dob025,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
-d$p_dob100_num <- plyr::mapvalues(d$p_dob100,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
-d$p_wil025_num <- plyr::mapvalues(d$p_wil025,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
-d$p_wil100_num <- plyr::mapvalues(d$p_wil100,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
-d$p_tpp_num <- plyr::mapvalues(d$p_tpp,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
-d$p_ttp_num <- plyr::mapvalues(d$p_ttp,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
-d$p_tpp2_num <- plyr::mapvalues(d$p_tpp2,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
-d$p_ttp2_num <- plyr::mapvalues(d$p_ttp2,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
+d$p_dob025_mch = predict(m_dob025_mch, newdata=d, type="response")
+d$p_dob100_mch = predict(m_dob100_mch, newdata=d, type = "response")
+d$p_wil025_mch = predict(m_wil025_mch, newdata=d, type="response")
+d$p_wil100_mch = predict(m_wil100_mch, newdata=d, type = "response")
+d$p_tempppt_mch = predict(m_tpp_mch, newdata=d, type = "response")
+
+d$p_dob025_smc = predict(m_dob025_smc, newdata=d, type="response")
+d$p_dob100_smc = predict(m_dob100_smc, newdata=d, type = "response")
+d$p_wil025_smc = predict(m_wil025_smc, newdata=d, type="response")
+d$p_wil100_smc = predict(m_wil100_smc, newdata=d, type = "response")
+d$p_tempppt_smc = predict(m_tpp_smc, newdata=d, type = "response")
 
 
-## to spatial points for plotting
-# pred_df = as(d_mod,"SpatialPointsDataFrame") %>% as("sf")
-# 
-# pred_df[d$index,"dob025"] <- d$p_dob025
-# pred_df[d$index,"dob100"] <- d$p_dob100
-# pred_df[d$index,"wil025"] <- d$p_dob025
-# pred_df[d$index,"wil100"] <- d$p_dob100
-# 
-# pred_df[d$index,"observed"] <- d$cv_text
-# pred_df[d$index,"observed"] = ifelse((pred_df[d$index,]$observed %in% top.whrtypes),  pred_df[d$index,]$observed, NA)
-# 
-# pred_df$x = st_coordinates(pred_df)[,1]
-# pred_df$y = st_coordinates(pred_df)[,2]
+# what prop of pixels are mhw?
+mhw_prop = sum(d$mhw,na.rm=TRUE)/sum(!is.na(d$mhw))
+# what predicted prob would give us that proportion of pixels?
+mhw_thresh_dob025 = quantile(d$p_dob025_mhw,1-mhw_prop)
+mhw_thresh_dob100 = quantile(d$p_dob100_mhw,1-mhw_prop)
 
-## turn d into a raster (for purposes of syncing everything)
+# what prop of pixels are smc?
+smc_prop = sum(d$smc,na.rm=TRUE)/sum(!is.na(d$smc))
+# what predicted prob would give us that proportion of pixels?
+smc_thresh_dob025 = quantile(d$p_dob025_smc,1-smc_prop)
+smc_thresh_dob100 = quantile(d$p_dob100_smc,1-smc_prop)
 
-p_dob025_num = d_mod[[1]] * 0
-values(p_dob025_num) = d$p_dob025_num
-names(p_dob025_num) = "p_dob025"
+# what prop of pixels are mch?
+mch_prop = sum(d$mch,na.rm=TRUE)/sum(!is.na(d$mch))
+# what predicted prob would give us that proportion of pixels?
+mch_thresh_dob025 = quantile(d$p_dob025_mch,1-mch_prop)
+mch_thresh_dob100 = quantile(d$p_dob100_mch,1-mch_prop)
 
-p_dob100_num = d_mod[[1]] * 0
-values(p_dob100_num) = d$p_dob100_num
-names(p_dob100_num) = "p_dob100"
+d = d %>%
+  mutate(p_dob025_mhw_pres = p_dob025_mhw > mhw_thresh_dob025) %>%
+  mutate(p_dob100_mhw_pres = p_dob100_mhw > mhw_thresh_dob100) %>%
+  mutate(p_dob025_mch_pres = p_dob025_mch > mch_thresh_dob025) %>%
+  mutate(p_dob100_mch_pres = p_dob100_mch > mch_thresh_dob100) %>%
+  mutate(p_dob025_smc_pres = p_dob025_smc > smc_thresh_dob025) %>%
+  mutate(p_dob100_smc_pres = p_dob100_smc > smc_thresh_dob100)
+  
 
-p_wil025_num = d_mod[[1]] * 0
-values(p_wil025_num) = d$p_wil025_num
-names(p_wil025_num) = "p_wil025"
 
-p_wil100_num = d_mod[[1]] * 0
-values(p_wil100_num) = d$p_wil100_num
-names(p_wil100_num) = "p_wil100"
 
-p_tpp_num = d_mod[[1]] * 0
-values(p_tpp_num) = d$p_tpp_num
-names(p_tpp_num) = "p_tpp"
 
-p_ttp_num = d_mod[[1]] * 0
-values(p_ttp_num) = d$p_ttp_num
-names(p_ttp_num) = "p_ttp"
 
-p_tpp2_num = d_mod[[1]] * 0
-values(p_tpp2_num) = d$p_tpp2_num
-names(p_tpp2_num) = "p_tpp2"
 
-p_ttp2_num = d_mod[[1]] * 0
-values(p_ttp2_num) = d$p_ttp2_num
-names(p_ttp2_num) = "p_ttp2"
 
-p_dob025_mhw = d_mod[[1]] * 0
-values(p_dob025_mhw) = d$p_dob025_mhw %>% as.vector
-names(p_dob025_mhw) = "p_dob025_mhw"
 
-p_dob100_mhw = d_mod[[1]] * 0
-values(p_dob100_mhw) = d$p_dob100_mhw %>% as.vector
-names(p_dob100_mhw) = "p_dob100_mhw"
 
-d_fullstack = stack(d_mod,p_dob025_num,p_dob100_num,p_wil025_num,p_wil100_num, p_tpp_num, p_ttp_num, p_ttp2_num, p_tpp2_num)
 
-### Back to sf points for plotting
 
-d_fullstack_sf = d_fullstack %>% as("SpatialPointsDataFrame") %>% as("sf")
-d_fullstack_sf$x = st_coordinates(d_fullstack_sf)[,1]
-d_fullstack_sf$y = st_coordinates(d_fullstack_sf)[,2]
 
-d_fullstack_sf = d_fullstack_sf %>%
-  mutate_at(vars(starts_with("p_")),  funs(name=plyr::mapvalues(.,cv_crosswalk$code,cv_crosswalk$val,) )      ) %>%
-  mutate(calveg_clipped_raster_whrtype_name = plyr::mapvalues(calveg_clipped_raster_whrtype,cv_crosswalk$code,cv_crosswalk$val)) %>%
-  mutate(calveg_clipped_raster_whrtype_name_top = ifelse(calveg_clipped_raster_whrtype_name %in% top.whrtypes, calveg_clipped_raster_whrtype_name, NA)) %>%
-  filter(!is.na(p_wil100))
+#### Plotting ####
 
-train_region = st_sf(bboxes)
-
-library(viridis)
-library(ggthemes)
-library(ggspatial)
-ggplot(d_fullstack_sf) +
-  geom_tile(aes(fill=p_dob100_name, x=x,y=y)) +
+ggplot(d) +
+  geom_tile(aes(fill=p_dob100_mch_pres, x=x,y=y)) +
   #coord_equal() +
   theme_map() +
-  geom_sf(data=train_region,fill=NA,color="red",size=1) +
-  scale_fill_viridis(na.value="white",discrete=TRUE,option="inferno",name="Vegetation type") +
+  geom_sf(data=bboxes,fill=NA,color="red",size=1) +
+  #scale_fill_viridis(na.value="white",discrete=TRUE,option="inferno",name="Vegetation type") +
   theme(legend.position="bottom") +
   theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
   theme(strip.text=element_text(size=12),strip.background=element_blank()) +
@@ -266,39 +221,99 @@ ggplot(d_fullstack_sf) +
 
 ## plot of the AET and CWD space of the training units and in general
 
-d_plot = d_fullstack_sf %>%
+d_plot = d %>%
   filter(!is.na(tuol_overlap)) %>%
   mutate(training_bool = ifelse(!is.na(training),"Yes","No")) %>%
   arrange(training_bool)
 
-ggplot(d_plot, aes(x = AET.Dobr.cc100, y = Deficit.Dobr.cc100, color=training)) +
-  geom_point(size=0.1)
+ggplot(d, aes(x = AET.Dobr.cc100, y = Deficit.Dobr.cc100, color=training)) +
+  geom_point(size=0.5)
 
 
 
 
 #### Evaluate/explain changes in veg predictions ####
 
-d_fullstack_sf = d_fullstack_sf %>%
-  mutate(dob_change = p_dob025 != p_dob100,
-         wil_change = p_wil025 != p_wil100)
+## for each CWB method and veg type, calculate 025, both, and 100
 
-npixels = d_fullstack_sf %>%
-  filter(!is.na(p_dob025_name)) %>% # this is redundant
+d_eval = d
+st_geometry(d_eval) = NULL
+
+d_eval_long = d_eval %>%
+  pivot_longer(cols=c(starts_with("aet_"),starts_with("cwd_"), starts_with("p_"), )) %>%
+  # get the second part of the name (it's the climate method)
+  mutate(clim_metric = str_split(name,"_") %>% map(2)) %>%
+  mutate(valtype_veg = str_c(str_split(name,"_") %>% map(1),str_split(name,"_") %>% map(3),str_split(name,"_") %>% map(4), sep= "_")) %>%
+  mutate(valtype_veg = str_replace(valtype_veg,"_NULL","")) %>%
+  mutate(valtype_veg = str_replace(valtype_veg,"_NULL","")) %>%
+  #arrange(ID, name, valtype_veg)
+  select(-name) %>%
+  pivot_wider(names_from = valtype_veg, values_from = value) %>%
+  rename(obs_mhw = mhw,
+         obs_smc = smc,
+         obs_mch = mch) %>%
+  pivot_longer(cols = c(starts_with("p_"), starts_with("obs_"))) %>%
+  mutate(presence_metric = case_when(str_ends(name,"_pres") ~ "presab",
+                                     str_starts(name,"obs_") ~ "obs",
+                                      TRUE ~ "prob")) %>%
+  mutate(vegtype = str_split(name,"_") %>% map(2)) %>%
+  select(-name) %>%
+  pivot_wider(names_from = presence_metric, values_from = value)
+
+## Put the predictions resulting from different CC assumptions side by side
+d_eval_presab = d_eval_long %>%
+  filter(clim_metric != "tempppt") %>%
+  mutate(cc = str_sub(clim_metric,-3,-1)) %>%
+  mutate(clim_metric = str_sub(clim_metric,1,3)) %>%
+  select(-aet,-cwd) %>%
+  pivot_wider(names_from = cc, values_from = c(prob,presab))
+
+## Compute a multi-level venn change classification
+
+d_eval_presab = d_eval_presab %>%
+  mutate(presab_summ = case_when(presab_100 & !presab_025 ~ "high",
+                                 presab_025 & !presab_100 ~ "low",
+                                 presab_100 & presab_025 ~ "both",
+                                 TRUE ~ "neither"))
+
+
+
+## quick test plot
+
+d_plot = d_eval_presab %>%
+  filter(clim_metric == "dob",
+         vegtype == "mhw")
+
+
+ggplot(d_plot,aes(x=x,y=y,fill=presab_summ)) +
+  geom_tile() +
+  coord_equal()
+
+
+
+
+
+
+
+
+
+
+
+
+
+npixels = d %>%
   nrow()
 
-npixels_outside_training = d_fullstack_sf %>%
-  filter(!is.na(p_dob025_name)) %>% # this is redundant
+npixels_outside_training = d %>%
   filter(is.na(training)) %>%
   nrow()
 
-npixels_outside_training_changed_dob = d_fullstack_sf %>%
-  filter(!is.na(p_dob025_name)) %>% # this is redundant
+npixels_outside_training_changed_dob = d %>%
   filter(is.na(training)) %>%
   filter(dob_change == TRUE) %>%
   nrow()
 
-npixels_outside_training_changed_wil = d_fullstack_sf %>%
+npixels_outside_training_changed_wil = d %>%
   filter(!is.na(p_wil025_name)) %>% # this is redundant
   filter(is.na(training)) %>%
   filter(wil_change == TRUE) %>%
