@@ -7,7 +7,6 @@ cv.type <- raster("data/calveg_clipped/calveg_clipped_raster_whrtype.tif")
 cv_crosswalk <- read.csv("data/calveg_clipped/type_conversion_table.csv",header=TRUE,stringsAsFactors=FALSE)
 tuol_mask <- st_read("data/tuolomne_mask/tuolomne_grid_mask.shp")
 
-d = mask(d,tuol_mask %>% st_transform(crs(d)))
 
 ### Get the env data synced to the calveg data (which first needs to be aggregated to the scale of analysis -- 240 m)
 set.seed(1)
@@ -20,8 +19,14 @@ d = crop(d,cv_agg)
 
 d_mod = stack(d,cv)
 
-d_mod[["index_mod"]] = 1:ncell(d_mod)
-names(d_mod)[length(names(d_mod))] = "index_mod"
+d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d)))
+d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d)))
+
+
+index_layer = d_mod[[1]]*0
+names(index_layer) = "index_mod"
+values(index_layer) = 1:ncell(index_layer)
+d_mod = stack(d_mod,index_layer)
 
 ### Create sampling points
 bbox_fun <- function(x1,y1,size) { # give it the top-left corner
@@ -36,15 +41,21 @@ bbox3 <- bbox_fun(36000,-4500,10000)
 bboxes <- st_sfc(bbox1,bbox2,bbox3,crs=3310) %>% st_as_sf
 
 
-## second four instead of 3
-bbox1 <- bbox_fun(-34500,-15000,10000)
-bbox2 <- bbox_fun(-9000,-13000,10000)
-bbox3 <- bbox_fun(20000,-5000,10000)
-bbox4 <- bbox_fun(46000,-1500,10000)
-bboxes <- st_sfc(bbox1,bbox2,bbox3,bbox4,crs=3310) %>% st_sf()
+### alternate approach to bboxes
+grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE)
+plots = grid %>% st_buffer(1000) %>% st_as_sf
+bboxes = plots
+
+
+# ## second four instead of 3
+# bbox1 <- bbox_fun(-34500,-15000,10000)
+# bbox2 <- bbox_fun(-9000,-13000,10000)
+# bbox3 <- bbox_fun(20000,-5000,10000)
+# bbox4 <- bbox_fun(46000,-1500,10000)
+# bboxes <- st_sfc(bbox1,bbox2,bbox3,bbox4,crs=3310) %>% st_sf()
+
 
 bboxes$training = 1:nrow(bboxes)
-
 tuol_mask$tuol_mask = 1
 
 
@@ -55,6 +66,7 @@ bbox_overlap = rasterize(bboxes,field="training",d_mod[[1]])
 d_mod = stack(d_mod,bbox_overlap)
 names(d_mod)[length(names(d_mod))] = "training"
 
+# get whether in tuolomne buffer
 tuol_overlap = rasterize(tuol_mask %>% st_transform(crs(d_mod)),field="tuol_mask",d_mod[[1]])
 d_mod = stack(d_mod,tuol_overlap)
 names(d_mod)[length(names(d_mod))] = "tuol_overlap"
@@ -65,10 +77,16 @@ d_mod_sf = d_mod %>% as("SpatialPointsDataFrame") %>% as("sf") #     as.data.fra
 d_mod_sf$index_df = 1:nrow(d_mod_sf)
 
 d_mod_sf = d_mod_sf %>%
-  rename(cv = "calveg_clipped_raster_whrtype") %>%
+  rename(cv = "calveg_clipped_raster_whrtype")
   filter(!is.na(AET.PT.STD.Wil150mm) & !is.na(cv))
 
 d = d_mod_sf
+
+### Compute annual temp and precip values
+d = d %>%
+  mutate(tmean_annual = tmean.01+tmean.02+tmean.03+tmean.04+tmean.05+tmean.06+tmean.07+tmean.08+tmean.09+tmean.10+tmean.11+tmean.12) %>%
+  mutate(ppt_annual = ppt.01+ppt.02+ppt.03+ppt.04+ppt.05+ppt.06+ppt.07+ppt.08+ppt.09+ppt.10+ppt.11+ppt.12)
+
 
 ### Get Calveg WHR types, and keep top 10
 d$cv_text = plyr::mapvalues(d$cv,cv_crosswalk$code,as.character(cv_crosswalk$val))
@@ -89,8 +107,8 @@ top.whrtypes <- names(t3[1:10])
 #convert to numeric
 top.whrtypes.numeric <- plyr::mapvalues(top.whrtypes,cv_crosswalk$val,cv_crosswalk$code)
 
-## thin to 1000 training points
-d_train <- d[d$training == 1,]
+## thin to 1000 training points  ##!! need to remove?
+d_train <- d[!is.na(d$training),]
 d_train <- d_train[d_train$cv_text %in% top.whrtypes,]
 thin_to <- 1000
 full <- nrow(d_train)
@@ -102,10 +120,23 @@ d_train <- d_train[seq(1,nrow(d_train),by=thin_factor),]
 library(nnet)
 
 m.1 <- nnet::multinom(cv_text~(AET.Dobr.cc025+Deficit.Dobr.cc025),data=d_train,maxit=10000)
-m_dob025 <- nnet::multinom(cv_text~(AET.Dobr.cc025+Deficit.Dobr.cc025+I(AET.Dobr.cc025^2)+I(Deficit.Dobr.cc025^2)),data=d_train,maxit=10000)
-m_dob100 <- nnet::multinom(cv_text~(AET.Dobr.cc100+Deficit.Dobr.cc100+I(AET.Dobr.cc100^2)+I(Deficit.Dobr.cc100^2)),data=d_train,maxit=10000)
-m_wil025 <- nnet::multinom(cv_text~(AET.PT.cc025.Wil150mm+Deficit.PT.cc025.Wil150mm+I(AET.PT.cc025.Wil150mm^2)+I(Deficit.PT.cc025.Wil150mm^2)),data=d_train,maxit=10000)
-m_wil100 <- nnet::multinom(cv_text~(AET.PT.STD.Wil150mm+Deficit.PT.STD.Wil150mm+I(AET.PT.STD.Wil150mm^2)+I(Deficit.PT.STD.Wil150mm^2)),data=d_train,maxit=10000)
+m_dob025 <- nnet::multinom(cv_text~(scale(AET.Dobr.cc025)+scale(Deficit.Dobr.cc025)+I(scale(AET.Dobr.cc025)^2)+I(scale(Deficit.Dobr.cc025)^2)),data=d_train,maxit=10000)
+m_dob100 <- nnet::multinom(cv_text~(scale(AET.Dobr.cc100)+scale(Deficit.Dobr.cc100)+I(scale(AET.Dobr.cc100)^2)+I(scale(Deficit.Dobr.cc100)^2)),data=d_train,maxit=10000)
+m_wil025 <- nnet::multinom(cv_text~(scale(AET.PT.cc025.Wil150mm)+scale(Deficit.PT.cc025.Wil150mm)+I(scale(AET.PT.cc025.Wil150mm)^2)+I(scale(Deficit.PT.cc025.Wil150mm)^2)),data=d_train,maxit=10000)
+m_wil100 <- nnet::multinom(cv_text~(scale(AET.PT.STD.Wil150mm)+scale(Deficit.PT.STD.Wil150mm)+I(scale(AET.PT.STD.Wil150mm)^2)+I(scale(Deficit.PT.STD.Wil150mm)^2)),data=d_train,maxit=10000)
+m_tpp <- nnet::multinom(cv_text~((scale(tmean_annual))+(scale(ppt_annual))),data=d_train,maxit=10000)
+m_ttp <- nnet::multinom(cv_text~(scale(tmean_annual)*scale(ppt_annual)),data=d_train,maxit=10000)
+m_tpp2 <- nnet::multinom(cv_text~scale(tmean_annual)+scale(ppt_annual) + I(scale(tmean_annual)^2)+ I(scale(ppt_annual)^2),data=d_train,maxit=10000)
+m_ttp2 <- nnet::multinom(cv_text~(scale(tmean_annual)*scale(ppt_annual))+I(scale(tmean_annual)^2)*I(scale(ppt_annual)^2),data=d_train,maxit=10000)
+
+
+#### Just predict montane hardwood
+m_dob025 <- nnet::multinom(cv_text~(scale(AET.Dobr.cc025)+scale(Deficit.Dobr.cc025)+I(scale(AET.Dobr.cc025)^2)+I(scale(Deficit.Dobr.cc025)^2)),data=d_train,maxit=10000)
+
+
+
+
+
 
 # d_train$p_dob025 = predict(m_dob025)
 # d_train$p_dob100 = predict(m_dob100)
@@ -117,12 +148,21 @@ d$p_dob025 = predict(m_dob025,newdat=d)
 d$p_dob100 = predict(m_dob100,newdat=d)
 d$p_wil025 = predict(m_wil025,newdat=d)
 d$p_wil100 = predict(m_wil100,newdat=d)
+d$p_tpp = predict(m_tpp,newdat=d)
+d$p_ttp = predict(m_ttp,newdat=d)
+d$p_tpp2 = predict(m_tpp2,newdat=d)
+d$p_ttp2 = predict(m_ttp2,newdat=d)
 
 ## whrtype back to numeric code
 d$p_dob025_num <- plyr::mapvalues(d$p_dob025,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
 d$p_dob100_num <- plyr::mapvalues(d$p_dob100,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
 d$p_wil025_num <- plyr::mapvalues(d$p_wil025,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
 d$p_wil100_num <- plyr::mapvalues(d$p_wil100,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
+d$p_tpp_num <- plyr::mapvalues(d$p_tpp,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
+d$p_ttp_num <- plyr::mapvalues(d$p_ttp,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
+d$p_tpp2_num <- plyr::mapvalues(d$p_tpp2,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
+d$p_ttp2_num <- plyr::mapvalues(d$p_ttp2,cv_crosswalk$val,as.numeric(cv_crosswalk$code)) %>% as.character %>% as.numeric
+
 
 ## to spatial points for plotting
 # pred_df = as(d_mod,"SpatialPointsDataFrame") %>% as("sf")
@@ -156,7 +196,23 @@ p_wil100_num = d_mod[[1]] * 0
 values(p_wil100_num) = d$p_wil100_num
 names(p_wil100_num) = "p_wil100"
 
-d_fullstack = stack(d_mod,p_dob025_num,p_dob100_num,p_wil025_num,p_wil100_num)
+p_tpp_num = d_mod[[1]] * 0
+values(p_tpp_num) = d$p_tpp_num
+names(p_tpp_num) = "p_tpp"
+
+p_ttp_num = d_mod[[1]] * 0
+values(p_ttp_num) = d$p_ttp_num
+names(p_ttp_num) = "p_ttp"
+
+p_tpp2_num = d_mod[[1]] * 0
+values(p_tpp2_num) = d$p_tpp2_num
+names(p_tpp2_num) = "p_tpp2"
+
+p_ttp2_num = d_mod[[1]] * 0
+values(p_ttp2_num) = d$p_ttp2_num
+names(p_ttp2_num) = "p_ttp2"
+
+d_fullstack = stack(d_mod,p_dob025_num,p_dob100_num,p_wil025_num,p_wil100_num, p_tpp_num, p_ttp_num, p_ttp2_num, p_tpp2_num)
 
 ### Back to sf points for plotting
 
@@ -166,6 +222,8 @@ d_fullstack_sf$y = st_coordinates(d_fullstack_sf)[,2]
 
 d_fullstack_sf = d_fullstack_sf %>%
   mutate_at(vars(starts_with("p_")),  funs(name=plyr::mapvalues(.,cv_crosswalk$code,cv_crosswalk$val,) )      ) %>%
+  mutate(calveg_clipped_raster_whrtype_name = plyr::mapvalues(calveg_clipped_raster_whrtype,cv_crosswalk$code,cv_crosswalk$val)) %>%
+  mutate(calveg_clipped_raster_whrtype_name_top = ifelse(calveg_clipped_raster_whrtype_name %in% top.whrtypes, calveg_clipped_raster_whrtype_name, NA)) %>%
   filter(!is.na(p_wil100))
 
 train_region = st_sf(bboxes)
@@ -174,7 +232,7 @@ library(viridis)
 library(ggthemes)
 library(ggspatial)
 ggplot(d_fullstack_sf) +
-  geom_tile(aes(fill=p_dob025_name, x=x,y=y)) +
+  geom_tile(aes(fill=p_dob100_name, x=x,y=y)) +
   #coord_equal() +
   theme_map() +
   geom_sf(data=train_region,fill=NA,color="red",size=1) +
@@ -186,13 +244,6 @@ ggplot(d_fullstack_sf) +
   theme(panel.border=element_rect(fill=NA)) +
   theme(legend.text=element_text(size=9),legend.title=element_text(size=11))
   
-  
-
-### what percentage of the veg types are different?
-
-
-
-
 
 
 ## plot of the AET and CWD space of the training units and in general
@@ -205,4 +256,37 @@ d_plot = d_fullstack_sf %>%
 ggplot(d_plot, aes(x = AET.Dobr.cc100, y = Deficit.Dobr.cc100, color=training)) +
   geom_point(size=0.1)
 
+
+
+
+#### Evaluate/explain changes in veg predictions ####
+
+d_fullstack_sf = d_fullstack_sf %>%
+  mutate(dob_change = p_dob025 != p_dob100,
+         wil_change = p_wil025 != p_wil100)
+
+npixels = d_fullstack_sf %>%
+  filter(!is.na(p_dob025_name)) %>% # this is redundant
+  nrow()
+
+npixels_outside_training = d_fullstack_sf %>%
+  filter(!is.na(p_dob025_name)) %>% # this is redundant
+  filter(is.na(training)) %>%
+  nrow()
+
+npixels_outside_training_changed_dob = d_fullstack_sf %>%
+  filter(!is.na(p_dob025_name)) %>% # this is redundant
+  filter(is.na(training)) %>%
+  filter(dob_change == TRUE) %>%
+  nrow()
+
+npixels_outside_training_changed_wil = d_fullstack_sf %>%
+  filter(!is.na(p_wil025_name)) %>% # this is redundant
+  filter(is.na(training)) %>%
+  filter(wil_change == TRUE) %>%
+  nrow()
+
+npixels_outside_training_changed_dob / npixels_outside_training
+
+npixels_outside_training_changed_wil / npixels_outside_training
 
