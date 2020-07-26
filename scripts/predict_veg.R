@@ -6,6 +6,12 @@ library(ggthemes)
 library(ggspatial)
 library(mgcv)
 
+fstat <- function(predict, actual_labels){
+  precision <- sum(predict & actual_labels) / sum(predict)
+  recall <- sum(predict & actual_labels) / sum(actual_labels)
+  fmeasure <- 2 * precision * recall / (precision + recall)
+}
+
 d_rast = brick("data/wb_output/rasters/landscape_wb_inputs_outputs.grd")
 cv.type <- raster("data/calveg_clipped/calveg_clipped_raster_whrtype.tif")
 cv_crosswalk <- read.csv("data/calveg_clipped/type_conversion_table.csv",header=TRUE,stringsAsFactors=FALSE)
@@ -18,7 +24,7 @@ cv_agg = aggregate(cv_project,fact = 240/30, fun=modal)
 d_rast = projectRaster(d_rast,cv_agg)
 
 cv = crop(cv_agg,d_rast)
-d_rast = crop(d,cv_agg)
+d_rast = crop(d_rast,cv_agg)
 
 d_mod = stack(d_rast,cv)
 
@@ -32,7 +38,7 @@ d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d_rast)))
 
 ### alternate approach to bboxes
 grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE)
-plots = grid %>% st_buffer(1000) %>% st_as_sf
+plots = grid %>% st_buffer(3000) %>% st_as_sf
 bboxes = plots
 bboxes$training = 1:nrow(bboxes)
 
@@ -141,10 +147,35 @@ m_wil025_smc <- gam(smc ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train,
 m_tpp_smc = gam(smc ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
 
 
+### Demo fitting MHW with only the western half of the plots to show how it performs more poorly
+d_train_west = d_train %>%
+  filter(x < mean(x))
+m_dob100_mch_full = gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
+m_dob100_mch_west = gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train_west, family="binomial")
+
+obs = d_train$mch
+fit = predict(m_dob100_mch_full, newdata = d_train)
+auc_full = auc(obs, fit)
+obs = d_train_west$mch
+fit = predict(m_dob100_mch_west, newdata = d_train_west)
+auc_west = auc(obs, fit)
+
+# obs = d_train$mhw
+# fit = predict(m_dob100_mhw_full, newdata = d_train)
+# auc_full = auc(obs, fit)
+# obs = d_train_west$mhw
+# fit = predict(m_dob100_mhw_west, newdata = d_train_west)
+# auc_west = auc(obs, fit)
+# 
+# obs = d_train$smc
+# fit = predict(m_dob100_smc_full, newdata = d_train)
+# auc_full = auc(obs, fit)
+# obs = d_train_west$smc
+# fit = predict(m_dob100_smc_west, newdata = d_train_west)
+# auc_west = auc(obs, fit)
 
 
-
-## predict to remaining dataset
+### predict to landscape
 d$p_dob025_mhw = predict(m_dob025_mhw, newdata=d, type="response")
 d$p_dob100_mhw = predict(m_dob100_mhw, newdata=d, type = "response")
 d$p_wil025_mhw = predict(m_wil025_mhw, newdata=d, type="response")
@@ -163,24 +194,34 @@ d$p_wil025_smc = predict(m_wil025_smc, newdata=d, type="response")
 d$p_wil100_smc = predict(m_wil100_smc, newdata=d, type = "response")
 d$p_tempppt_smc = predict(m_tpp_smc, newdata=d, type = "response")
 
+### For each veg type, calc a predicted pres/ab
 
 # what prop of pixels are mhw?
 mhw_prop = sum(d$mhw,na.rm=TRUE)/sum(!is.na(d$mhw))
 # what predicted prob would give us that proportion of pixels?
 mhw_thresh_dob025 = quantile(d$p_dob025_mhw,1-mhw_prop)
 mhw_thresh_dob100 = quantile(d$p_dob100_mhw,1-mhw_prop)
+mhw_thresh_wil025 = quantile(d$p_wil025_mhw,1-mhw_prop)
+mhw_thresh_wil100 = quantile(d$p_wil100_mhw,1-mhw_prop)
+mhw_thresh_tempppt = quantile(d$p_tempppt_mhw,1-mhw_prop)
 
 # what prop of pixels are smc?
 smc_prop = sum(d$smc,na.rm=TRUE)/sum(!is.na(d$smc))
 # what predicted prob would give us that proportion of pixels?
 smc_thresh_dob025 = quantile(d$p_dob025_smc,1-smc_prop)
 smc_thresh_dob100 = quantile(d$p_dob100_smc,1-smc_prop)
+smc_thresh_wil025 = quantile(d$p_wil025_smc,1-smc_prop)
+smc_thresh_wil100 = quantile(d$p_wil100_smc,1-smc_prop)
+smc_thresh_tempppt = quantile(d$p_tempppt_smc,1-smc_prop)
 
 # what prop of pixels are mch?
 mch_prop = sum(d$mch,na.rm=TRUE)/sum(!is.na(d$mch))
 # what predicted prob would give us that proportion of pixels?
 mch_thresh_dob025 = quantile(d$p_dob025_mch,1-mch_prop)
 mch_thresh_dob100 = quantile(d$p_dob100_mch,1-mch_prop)
+mch_thresh_wil025 = quantile(d$p_wil025_mch,1-mch_prop)
+mch_thresh_wil100 = quantile(d$p_wil100_mch,1-mch_prop)
+mch_thresh_tempppt = quantile(d$p_tempppt_mch,1-mch_prop)
 
 d = d %>%
   mutate(p_dob025_mhw_pres = p_dob025_mhw > mhw_thresh_dob025) %>%
@@ -188,14 +229,16 @@ d = d %>%
   mutate(p_dob025_mch_pres = p_dob025_mch > mch_thresh_dob025) %>%
   mutate(p_dob100_mch_pres = p_dob100_mch > mch_thresh_dob100) %>%
   mutate(p_dob025_smc_pres = p_dob025_smc > smc_thresh_dob025) %>%
-  mutate(p_dob100_smc_pres = p_dob100_smc > smc_thresh_dob100)
-  
-
-
-
-
-
-
+  mutate(p_dob100_smc_pres = p_dob100_smc > smc_thresh_dob100) %>%
+  mutate(p_wil025_mhw_pres = p_wil025_mhw > mhw_thresh_wil025) %>%
+  mutate(p_wil100_mhw_pres = p_wil100_mhw > mhw_thresh_wil100) %>%
+  mutate(p_wil025_mch_pres = p_wil025_mch > mch_thresh_wil025) %>%
+  mutate(p_wil100_mch_pres = p_wil100_mch > mch_thresh_wil100) %>%
+  mutate(p_wil025_smc_pres = p_wil025_smc > smc_thresh_wil025) %>%
+  mutate(p_wil100_smc_pres = p_wil100_smc > smc_thresh_wil100) %>%
+  mutate(p_tempppt_smc_pres = p_tempppt_smc > smc_thresh_tempppt) %>%
+  mutate(p_tempppt_mhw_pres = p_tempppt_mhw > mhw_thresh_tempppt) %>%
+  mutate(p_tempppt_mch_pres = p_tempppt_mch > mch_thresh_tempppt)
 
 
 
@@ -205,7 +248,7 @@ d = d %>%
 #### Plotting ####
 
 ggplot(d) +
-  geom_tile(aes(fill=p_dob100_mch_pres, x=x,y=y)) +
+  geom_tile(aes(fill=mhw, x=x,y=y)) +
   #coord_equal() +
   theme_map() +
   geom_sf(data=bboxes,fill=NA,color="red",size=1) +
@@ -226,7 +269,7 @@ d_plot = d %>%
   mutate(training_bool = ifelse(!is.na(training),"Yes","No")) %>%
   arrange(training_bool)
 
-ggplot(d, aes(x = AET.Dobr.cc100, y = Deficit.Dobr.cc100, color=training)) +
+ggplot(d, aes(x = aet_dob100, y = cwd_dob100, color=training)) +
   geom_point(size=0.5)
 
 
@@ -275,51 +318,39 @@ d_eval_presab = d_eval_presab %>%
                                  presab_025 & !presab_100 ~ "low",
                                  presab_100 & presab_025 ~ "both",
                                  TRUE ~ "neither"))
+  
+library(pROC)
+d_eval_presab_summ = d_eval_presab %>%
+  mutate(vegtype = as.character(vegtype)) %>%
+  mutate_at(vars(obs,presab_025,presab_100),as.logical) %>%
+  group_by(clim_metric,vegtype) %>%
+  # what fraction of the cells in that had presence in either were the same in both?
+  summarize(prop_same = sum(presab_summ == "both")/sum(presab_summ != "neither"),
+            f_stat = fstat(presab_025,presab_100),
+            auc_025 = auc(obs,prob_025),
+            auc_100 = auc(obs,prob_100))
+
+
+## get AUCs for ppt models
+d_eval_ppt = d_eval_long %>%
+  filter(clim_metric == "tempppt") %>%
+  mutate(vegtype = as.character(vegtype)) %>%
+  mutate_at(vars(obs,presab),as.logical) %>%
+  group_by(vegtype) %>%
+  # what fraction of the cells in that had presence in either were the same in both?
+  summarize(auc_100 = auc(obs,prob))
+
 
 
 
 ## quick test plot
 
 d_plot = d_eval_presab %>%
-  filter(clim_metric == "dob",
-         vegtype == "mhw")
+  filter(clim_metric == "wil",
+         vegtype == "mch")
 
 
 ggplot(d_plot,aes(x=x,y=y,fill=presab_summ)) +
   geom_tile() +
   coord_equal()
-
-
-
-
-
-
-
-
-
-
-
-
-
-npixels = d %>%
-  nrow()
-
-npixels_outside_training = d %>%
-  filter(is.na(training)) %>%
-  nrow()
-
-npixels_outside_training_changed_dob = d %>%
-  filter(is.na(training)) %>%
-  filter(dob_change == TRUE) %>%
-  nrow()
-
-npixels_outside_training_changed_wil = d %>%
-  filter(!is.na(p_wil025_name)) %>% # this is redundant
-  filter(is.na(training)) %>%
-  filter(wil_change == TRUE) %>%
-  nrow()
-
-npixels_outside_training_changed_dob / npixels_outside_training
-
-npixels_outside_training_changed_wil / npixels_outside_training
 
