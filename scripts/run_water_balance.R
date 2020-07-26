@@ -1,5 +1,7 @@
 library(raster)
 library(tidyverse)
+library(furrr)
+plan(multiprocess,workers=8)
 
 source("scripts/water_balance_models/set_wb.R")
 
@@ -24,11 +26,65 @@ PET.methods <- "PT"
 PET.mods <- c("STD","cc025")
 AET.methods <- "Wil150mm"
 
+## Define base parameter DF
+wbparams_base <- wb.inputs.df[complete.cases(wb.inputs.df),] %>%
+  mutate(scenario = "base")
 
-wb.inputs.df.complete <- wb.inputs.df[complete.cases(wb.inputs.df),]
+## ALTERNATE PARAMETER DFS
+## Aseasonal temp
+tmin_mean = wbparams_base %>% select(starts_with("tmin.")) %>% rowMeans
+tmean_mean = wbparams_base %>% select(starts_with("tmean.")) %>% rowMeans
+tmax_mean = wbparams_base %>% select(starts_with("tmax.")) %>% rowMeans
+td_mean = wbparams_base %>% select(starts_with("td.")) %>% rowMeans
+wbparams_consttemp = wbparams_base %>%
+  mutate_at(vars(starts_with("tmin.")), ~tmin_mean) %>%
+  mutate_at(vars(starts_with("tmean.")), ~tmean_mean) %>%
+  mutate_at(vars(starts_with("tmax.")), ~tmax_mean) %>%
+  mutate_at(vars(starts_with("td.")), ~td_mean) %>%
+  mutate(scenario = "consttemp")
 
-wb <- set_wb(wb.inputs.df.complete, PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE)
+## Aseasonal precip
+ppt_mean = wbparams_base %>% select(starts_with("ppt")) %>% rowMeans
+wbparams_constppt = wbparams_base %>%
+  mutate_at(vars(starts_with("ppt.")), ~ppt_mean) %>%
+  mutate(scenario = "constppt")
 
+## Aseasonal temp and precip
+wbparams_consttempppt = wbparams_base %>%
+  mutate_at(vars(starts_with("ppt.")), ~ppt_mean) %>%
+  mutate_at(vars(starts_with("tmin.")), ~tmin_mean) %>%
+  mutate_at(vars(starts_with("tmean.")), ~tmean_mean) %>%
+  mutate_at(vars(starts_with("tmax.")), ~tmax_mean) %>%
+  mutate_at(vars(starts_with("td.")), ~td_mean) %>%
+  mutate(scenario = "consttempppt")
+
+## Double precip
+wbparams_doubleppt = wbparams_base %>%
+  mutate_at(vars(starts_with("ppt.")), ~.*2) %>%
+  mutate(scenario = "doubleppt")
+
+## Double aseasonal precip, aseasonal temp
+wbparams_consttemppptdoubleppt = wbparams_consttempppt %>%
+  mutate_at(vars(starts_with("ppt.")), ~.*2) %>%
+  mutate(scenario = "consttemppptdoubleppt")
+
+
+## LIST OF PARAMETERS DFs
+inputs = list(base = wbparams_base,
+              consttemp = wbparams_consttemp,
+              constppt = wbparams_constppt,
+              consttempppt = wbparams_consttempppt,
+              doubleppt = wbparams_doubleppt,
+              consttemppptdoubleppt = wbparams_consttemppptdoubleppt)
+
+a = future_map_dfr(inputs,set_wb,PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE,
+               .progress = TRUE,
+               .options = future_options(globals = c("PET.PT","Point_WB","monthlengths","SatVapPresSlope","ElevToPress","PET.mod.STD","PET.mod.cc025","AET.Wil150mm","AET.Wil","run_dob_wb","dobr_wb","snowmod","monthlyET0","aetmod"),
+                                         packages = "dplyr"))
+
+## Compile all into a long DF (with a column indicating what scenario)
+
+a = set_wb(inputs[[1]],PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE)
 
 ### pull together the output of the different wb methods and write to a file
 write.csv(wb,"data/wb_output/landscape_wb_outputs.csv",row.names=FALSE)

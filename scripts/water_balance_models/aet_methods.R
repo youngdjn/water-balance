@@ -96,9 +96,13 @@ AET.Wil <- function(PET.m, WB.params)
     W.s.0 <- W.s[365]
     W.0   <- W[365]
     ctr   <- ctr + 1
-    if(ctr > 10)
-      stop("Error in Wilmott AET")
+    if(ctr > 10) {
+      warning("Error in Wilmott AET")
+      AET.m = rep(-999,12)
+    }
   }
+  
+  
   
   monthends <- cumsum(monthlengths())
   monthstarts <- c(1, 1 + monthends)[1:12]
@@ -112,6 +116,7 @@ AET.Wil <- function(PET.m, WB.params)
   AET.m <- P.r + M - delta.W - S
   AET.m[AET.m > PET.m] <- PET.m[AET.m > PET.m]
   
+  browser()
 
   return(AET.m)
 }
