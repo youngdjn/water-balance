@@ -14,10 +14,10 @@ PET.mod.STD <- function(PET.m, WB.params)
   return(PET.m)
 }
 
-PET.mod.cc050 <- function(PET.m, WB.params)
-{
-  return(PET.m  * .5)
-}
+# PET.mod.cc050 <- function(PET.m, WB.params)
+# {
+#   return(PET.m  * .5)
+# }
 
 PET.mod.cc025 <- function(PET.m, WB.params)
 {

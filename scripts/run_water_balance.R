@@ -21,7 +21,7 @@ wb.inputs.df$Lon <- coordinates(wb.inputs.df)[,1]
 wb.inputs.df <- as.data.frame(wb.inputs.df)
 
 PET.methods <- "PT"
-PET.mods <- c("STD","cc050","cc025")
+PET.mods <- c("STD","cc025")
 AET.methods <- "Wil150mm"
 
 
