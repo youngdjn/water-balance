@@ -44,7 +44,7 @@ wbparams_consttemp = wbparams_base %>%
   mutate(scenario = "consttemp")
 
 ## Aseasonal precip
-ppt_mean = wbparams_base %>% select(starts_with("ppt")) %>% rowMeans
+ppt_mean = wbparams_base %>% select(starts_with("ppt.")) %>% rowMeans
 wbparams_constppt = wbparams_base %>%
   mutate_at(vars(starts_with("ppt.")), ~ppt_mean) %>%
   mutate(scenario = "constppt")
@@ -77,61 +77,46 @@ inputs = list(base = wbparams_base,
               doubleppt = wbparams_doubleppt,
               consttemppptdoubleppt = wbparams_consttemppptdoubleppt)
 
-a = future_map_dfr(inputs,set_wb,PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE,
+wb = future_map(inputs,set_wb,PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE,
                .progress = TRUE,
                .options = future_options(globals = c("PET.PT","Point_WB","monthlengths","SatVapPresSlope","ElevToPress","PET.mod.STD","PET.mod.cc025","AET.Wil150mm","AET.Wil","run_dob_wb","dobr_wb","snowmod","monthlyET0","aetmod"),
                                          packages = "dplyr"))
 
-## Compile all into a long DF (with a column indicating what scenario)
+# Compile and save Data frames of inputs and outputs , plus rasters: one for each scenario
 
-a = set_wb(inputs[[1]],PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE)
-
-### pull together the output of the different wb methods and write to a file
-write.csv(wb,"data/wb_output/landscape_wb_outputs.csv",row.names=FALSE)
-
-
-#### Merge WB values with non-wb predictors and FIA responses ####
-wb <- read.csv("data/wb_output/landscape_wb_outputs.csv",header=TRUE)
-wb.nonwb <- left_join(wb,wb.inputs.df,by="ID")
-d = wb.nonwb
-write.csv(d,"data/wb_output/landscape_wb_inputs_outputs.csv",row.names=FALSE)
-
-### rasterize
-wb.nonwb <- read.csv("data/wb_output/landscape_wb_inputs_outputs.csv",header=TRUE,stringsAsFactors = FALSE)
-d <- wb.nonwb
-
-
-# template raster is wb.inputs, already loaded at beginning of script
-
-id.layer <- wb.inputs[["ID"]]
-#values(id.layer) <- seq_along(id.layer) # this is the way we assigned IDs to that grid
-
-## Add all the modeled WB values/layers to the WB inputs DF so that outputs are stacked with inputs
-## arrange the wb.nonwb DF with IDs in the same order as the raster cells
-order <- match(raster::values(id.layer),d$ID)
-d.rast.compare <- d[order,]
-
-for (i in 1:ncol(d.rast.compare)) {
-  col <- d.rast.compare[,i]
-  name <- names(d.rast.compare)[i]
+for(i in 1:length(inputs)) {
+  scenario = names(inputs)[i]
+  inputs_foc = inputs[[scenario]]
+  outputs_foc = wb[[scenario]]
+  in_out_foc = left_join(inputs_foc, outputs_foc,by="ID") %>%
+    select(-scenario)
+  write.csv(in_out_foc,paste0("data/wb_output/",scenario,".csv"),row.names=FALSE)
   
-  wb.inputs[[name]] <- col
-  if(!(name %in% names(wb.inputs))) { # if the layer we just added is not a name in the raster, it was just added at the end with a genericc name, so rename it
-    names(wb.inputs)[length(names(wb.inputs))] <- name #set the last layer (the one just created) to the correct name
-  }
+  
+  
+  ## Add all the modeled WB values/layers to the WB inputs DF so that outputs are stacked with inputs
+  ## arrange the wb.nonwb DF with IDs in the same order as the raster cells
+  order <- match(raster::values(id.layer),in_out_foc$ID)
+  d.rast.compare <- in_out_foc[order,]
+  
+  wb.inputs.foc = wb.inputs
+  
+  for (j in 1:ncol(d.rast.compare)) {
+    col <- d.rast.compare[,j]
+    name <- names(d.rast.compare)[j]
     
+    wb.inputs.foc[[name]] <- col
+    if(!(name %in% names(wb.inputs.foc))) { # if the layer we just added is not a name in the raster, it was just added at the end with a genericc name, so rename it
+      names(wb.inputs.foc)[length(names(wb.inputs.foc))] <- name #set the last layer (the one just created) to the correct name
+    }
+    
+  }
+  
+  
+  writeRaster(wb.inputs.foc,paste0("data/wb_output/rasters/",scenario,".grd"), overwrite=TRUE)
+  
+  
 }
 
-d.rast <- wb.inputs
-
-writeRaster(d.rast,"data/wb_output/rasters/landscape_wb_inputs_outputs.grd", overwrite=TRUE)
-
-
-# ## output the AET and CWD rasters of the different crop coefficients
-# writeRaster(d.rast$AET.Dobr.cc025,"data/wb_output/rasters/aet_025.tif",overwrite=TRUE)
-# writeRaster(d.rast$AET.Dobr.cc100,"data/wb_output/rasters/aet_100.tif",overwrite=TRUE)
-# writeRaster(d.rast$Deficit.Dobr.cc025,"data/wb_output/rasters/cwd_025.tif",overwrite=TRUE)
-# writeRaster(d.rast$Deficit.Dobr.cc100,"data/wb_output/rasters/cwd_100.tif",overwrite=TRUE)
-# 
 
 

@@ -4,7 +4,11 @@ library(tidyverse)
 library(scales)
 library(viridis)
 
-d_rast = brick("data/wb_output/rasters/landscape_wb_inputs_outputs.grd")
+d_rast = brick("data/wb_output/rasters/base.grd")
+
+
+
+
 
 d_orig = d_rast %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310)
 
