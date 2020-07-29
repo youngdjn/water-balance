@@ -5,6 +5,7 @@ library(viridis)
 library(ggthemes)
 library(ggspatial)
 library(mgcv)
+library(pROC)
 
 fstat <- function(predict, actual_labels){
   precision <- sum(predict & actual_labels) / sum(predict)
@@ -12,7 +13,7 @@ fstat <- function(predict, actual_labels){
   fmeasure <- 2 * precision * recall / (precision + recall)
 }
 
-d_rast = brick("data/wb_output/rasters/landscape_wb_inputs_outputs.grd")
+d_rast = brick("data/wb_output/rasters/base.grd")
 cv.type <- raster("data/calveg_clipped/calveg_clipped_raster_whrtype.tif")
 cv_crosswalk <- read.csv("data/calveg_clipped/type_conversion_table.csv",header=TRUE,stringsAsFactors=FALSE)
 tuol_mask <- st_read("data/tuolomne_mask/tuolomne_grid_mask.shp")
@@ -38,7 +39,7 @@ d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d_rast)))
 
 ### alternate approach to bboxes
 grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE)
-plots = grid %>% st_buffer(3000) %>% st_as_sf
+plots = grid %>% st_buffer(2000) %>% st_as_sf
 bboxes = plots
 bboxes$training = 1:nrow(bboxes)
 
@@ -85,32 +86,16 @@ d = d %>%
          cwd_dob025 = Deficit.Dobr.cc025,
          aet_tempppt = ppt_annual,
          cwd_tempppt = tmean_annual) %>%
-  dplyr::select(-rad.03,-AET.PT.cc050.Wil150mm,-Deficit.PT.cc050.Wil150mm) %>%
+  dplyr::select(-rad.03) %>%
   mutate(ID = 1:nrow(d))
 
 
 
-### Get Calveg WHR types (text), and keep top 10
+### Get Calveg WHR types (text)
 d$cv_text = plyr::mapvalues(d$cv,cv_crosswalk$code,as.character(cv_crosswalk$val))
-# 
-# ## abundance of diff whr types in study area
-# t <- table(d$cv_text)
-# t2 <- t[order(t,decreasing=TRUE)]
-# t2
-# plot(t2)
-# 
-# #remove lake
-# types.drop <- "LAC"
-# t3 <- t2[!(names(t2) %in% types.drop)]
-# 
-# #take top 10 types
-# top.whrtypes <- names(t3[1:10])
-
-#convert to numeric
-top.whrtypes.numeric <- plyr::mapvalues(top.whrtypes,cv_crosswalk$val,cv_crosswalk$code)
 
 
-## Calc type presences
+### Calc type presences
 d = d %>%
   mutate(mhw = cv_text == "MHW",
          mch = cv_text == "MCH",
@@ -120,11 +105,6 @@ d = d %>%
 
 ## Separate out the training dataset
 d_train <- d[!is.na(d$training),]
-d_train <- d_train[d_train$cv_text %in% top.whrtypes,]
-
-
-
-
 
 
 #### Just fit a few veg types
@@ -146,19 +126,23 @@ m_wil100_smc <- gam(smc ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train,
 m_wil025_smc <- gam(smc ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
 m_tpp_smc = gam(smc ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
 
+summary(m_dob025_mhw)
+summary(m_dob100_mhw)
+summary(m_tpp_mhw)
 
-### Demo fitting MHW with only the western half of the plots to show how it performs more poorly
-d_train_west = d_train %>%
-  filter(x < mean(x))
-m_dob100_mch_full = gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
-m_dob100_mch_west = gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train_west, family="binomial")
 
-obs = d_train$mch
-fit = predict(m_dob100_mch_full, newdata = d_train)
-auc_full = auc(obs, fit)
-obs = d_train_west$mch
-fit = predict(m_dob100_mch_west, newdata = d_train_west)
-auc_west = auc(obs, fit)
+# ### Demo fitting MHW with only the western half of the plots to show how it performs more poorly
+# d_train_west = d_train %>%
+#   filter(x < mean(x))
+# m_dob100_mch_full = gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
+# m_dob100_mch_west = gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train_west, family="binomial")
+
+obs = d_train$mhw
+fit = predict(m_dob100_mhw, newdata = d_train)
+auc(obs, fit)
+# obs = d_train_west$mch
+# fit = predict(m_dob100_mch_west, newdata = d_train_west)
+# auc_west = auc(obs, fit)
 
 # obs = d_train$mhw
 # fit = predict(m_dob100_mhw_full, newdata = d_train)
@@ -223,6 +207,11 @@ mch_thresh_wil025 = quantile(d$p_wil025_mch,1-mch_prop)
 mch_thresh_wil100 = quantile(d$p_wil100_mch,1-mch_prop)
 mch_thresh_tempppt = quantile(d$p_tempppt_mch,1-mch_prop)
 
+
+
+
+
+
 d = d %>%
   mutate(p_dob025_mhw_pres = p_dob025_mhw > mhw_thresh_dob025) %>%
   mutate(p_dob100_mhw_pres = p_dob100_mhw > mhw_thresh_dob100) %>%
@@ -248,7 +237,7 @@ d = d %>%
 #### Plotting ####
 
 ggplot(d) +
-  geom_tile(aes(fill=mhw, x=x,y=y)) +
+  geom_tile(aes(fill=p_dob100_mhw_pres, x=x,y=y)) +
   #coord_equal() +
   theme_map() +
   geom_sf(data=bboxes,fill=NA,color="red",size=1) +
@@ -266,11 +255,20 @@ ggplot(d) +
 
 d_plot = d %>%
   filter(!is.na(tuol_overlap)) %>%
-  mutate(training_bool = ifelse(!is.na(training),"Yes","No")) %>%
+  mutate(training_bool = ifelse(!is.na(training),"Training","Non-training")) %>%
+  mutate(training_bool = factor(training_bool, levels = c("Non-training","Training"))) %>%
   arrange(training_bool)
 
-ggplot(d, aes(x = aet_dob100, y = cwd_dob100, color=training)) +
-  geom_point(size=0.5)
+p = ggplot(d_plot, aes(x = aet_dob100, y = cwd_dob100, color=training_bool)) +
+  geom_point(size=0.5) +
+  scale_color_manual(values = c("blue","cornflowerblue"),name = "Pixel type") +
+  labs(x = "AET (mm)", y = "CWD (mm)") +
+  theme_classic(16) +
+  guides(colour = guide_legend(override.aes = list(size=2)))
+  
+png("figures/climate_space_sampled.png", width = 1300, height = 1000, res = 200)
+p
+dev.off()
 
 
 
@@ -346,7 +344,7 @@ d_eval_ppt = d_eval_long %>%
 ## quick test plot
 
 d_plot = d_eval_presab %>%
-  filter(clim_metric == "wil",
+  filter(clim_metric == "dob",
          vegtype == "mch")
 
 
