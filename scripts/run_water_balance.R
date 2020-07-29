@@ -104,10 +104,14 @@ for(i in 1:length(inputs)) {
   for (j in 1:ncol(d.rast.compare)) {
     col <- d.rast.compare[,j]
     name <- names(d.rast.compare)[j]
-    
-    wb.inputs.foc[[name]] <- col
-    if(!(name %in% names(wb.inputs.foc))) { # if the layer we just added is not a name in the raster, it was just added at the end with a genericc name, so rename it
-      names(wb.inputs.foc)[length(names(wb.inputs.foc))] <- name #set the last layer (the one just created) to the correct name
+
+    if(!(name %in% names(wb.inputs.foc))) { # if the layer we are adding is not a name in the raster, it was just added at the end with a genericc name, so rename it
+      newlayer = wb.inputs.foc[[1]] * 0
+      values(newlayer) = col
+      names(newlayer) = name
+      wb.inputs.foc = addLayer(wb.inputs.foc,newlayer)
+    } else { # it already exists, so replace it
+      wb.inputs.foc[[name]] <- col
     }
     
   }
