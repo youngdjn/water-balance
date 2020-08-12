@@ -41,6 +41,10 @@ d_mod = mask(d_mod,tuol_mask %>% st_transform(crs(d_rast)))
 grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE)
 plots = grid %>% st_buffer(2000) %>% st_as_sf
 bboxes = plots
+
+#clip them to the focal area
+bboxes = st_intersection(bboxes,tuol_mask %>% st_transform(st_crs(bboxes)))
+
 bboxes$training = 1:nrow(bboxes)
 
 
@@ -326,7 +330,8 @@ d_eval_presab_summ = d_eval_presab %>%
   summarize(prop_same = sum(presab_summ == "both")/sum(presab_summ != "neither"),
             f_stat = fstat(presab_025,presab_100),
             auc_025 = auc(obs,prob_025),
-            auc_100 = auc(obs,prob_100))
+            auc_100 = auc(obs,prob_100)) %>%
+  select(clim_metric, vegtype, auc_025, auc_100, prop_same, f_stat)
 
 
 ## get AUCs for ppt models
@@ -336,19 +341,115 @@ d_eval_ppt = d_eval_long %>%
   mutate_at(vars(obs,presab),as.logical) %>%
   group_by(vegtype) %>%
   # what fraction of the cells in that had presence in either were the same in both?
-  summarize(auc_100 = auc(obs,prob))
+  summarize(auc_ppt = auc(obs,prob)) %>%
+  mutate(clim_metric = "ppt")
+
+
+## Table for main ms (dobrowski and ppt)
+
+veg_fits_main = d_eval_presab_summ %>%
+  ungroup() %>%
+  filter(clim_metric == "dob") %>%
+  select(-clim_metric) %>%
+  left_join(d_eval_ppt %>% select(-clim_metric)) %>%
+  mutate_if(is.numeric,round,digits=2) #%>%
+  # t() %>%
+  # as.data.frame() %>%
+  # rownames_to_column()
+
+write_csv(veg_fits_main, "tables/veg_fits_main.csv")
+
+
+## Table for supplement (willmott)
+
+veg_fits_supp = d_eval_presab_summ %>%
+  ungroup() %>%
+  filter(clim_metric == "wil") %>%
+  select(-clim_metric) %>%
+  mutate_if(is.numeric,round,digits=2)
+
+write_csv(veg_fits_supp, "tables/veg_fits_supp.csv")
 
 
 
 
-## quick test plot
 
-d_plot = d_eval_presab %>%
+## Plot mapped veg predictions for three veg types
+
+d_plot_pre = d_eval_presab %>%
+  mutate(presab_summ = recode(presab_summ, high = "1.00 only",
+                              low = "0.25 only",
+                              both = "Both",
+                              neither = "Neither")) %>%
+  mutate(presab_summ = factor(presab_summ, levels=c("0.25 only","Both","1.00 only","Neither")))
+
+
+map_preds = function(d_plot, title, legend) {
+
+  p <- ggplot(d_plot) +
+    geom_raster(aes(x=x,y=y,fill=presab_summ)) +
+    coord_equal() +
+    theme_map() +
+    theme(legend.position="right") +
+    #theme(legend.title=element_blank()) +
+    theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+    theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+    theme(panel.spacing=unit(1,"lines")) +
+    theme(panel.border=element_rect(fill=NA)) +
+    theme(legend.text=element_text(size=9)) +
+    labs(title=title) +
+    theme(plot.title=element_text(hjust=0.5,size=12)) +
+    scale_x_continuous(limit=c(-55000,60000)) +
+    scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted")
+  
+  if(!legend) {
+    p = p + theme(legend.position = "none")
+  }
+     
+  return(p) 
+    
+}
+
+d_plot = d_plot_pre %>%
   filter(clim_metric == "dob",
          vegtype == "mch")
+p2 = map_preds(d_plot, title = "Montane chaparral", legend=TRUE)
+
+d_plot = d_plot_pre %>%
+  filter(clim_metric == "dob",
+         vegtype == "mhw")
+p3 = map_preds(d_plot, title = "Montane hardwoods", legend=TRUE)
+
+d_plot = d_plot_pre %>%
+  filter(clim_metric == "dob",
+         vegtype == "smc")
+p4 = map_preds(d_plot, title = "Sierra mixed-conifer", legend=TRUE)
 
 
-ggplot(d_plot,aes(x=x,y=y,fill=presab_summ)) +
-  geom_tile() +
-  coord_equal()
+
+#### Map of the 3 focal veg types
+
+d_plot = d %>%
+  filter(cv_text %in% c("MCH","MHW","SMC")) %>%
+  mutate(cv_text = recode(cv_text,SMC = "Sierra mixed-conifer",MHW = "Montane hardwoods",MCH = "Montane chaparral")) %>%
+  mutate(cv_text = factor(cv_text,levels=c("Montane chaparral","Montane hardwoods","Sierra mixed-conifer")))
+
+
+ggplot(d_plot) +
+  geom_sf(data = tuol_mask, fill="grey90", color=NA) +
+  geom_tile(aes(fill=cv_text, x=x,y=y)) +
+  #coord_equal() +
+  theme_map() +
+  geom_sf(data=bboxes,fill=NA,color="grey20",size=0.25) +
+  #geom_sf(data = tuol_mask, fill=NA, color="grey20") +
+  #scale_fill_viridis(na.value="white",discrete=TRUE,option="inferno",name="Vegetation type") +
+  theme(legend.position="bottom") +
+  theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+  theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+  theme(panel.spacing=unit(1,"lines")) +
+  #theme(panel.border=element_rect(fill=NA, color=NA)) +
+  theme(legend.text=element_text(size=9),legend.title=element_text(size=11)) +
+  scale_fill_manual(values=c("#22BBD3","#5C6070", "#C1495D","grey50"), name = NULL)
+ 
+
 
