@@ -396,10 +396,11 @@ map_preds = function(d_plot, title, legend) {
     theme(strip.text=element_text(size=12),strip.background=element_blank()) +
     theme(panel.spacing=unit(1,"lines")) +
     theme(panel.border=element_rect(fill=NA)) +
-    theme(legend.text=element_text(size=9)) +
+    theme(legend.text=element_text(size=8)) +
+    theme(plot.title = element_text(size=9)) +
     labs(title=title) +
-    theme(plot.title=element_text(hjust=0.5,size=12)) +
-    scale_x_continuous(limit=c(-55000,60000)) +
+    #theme(plot.title=element_text(hjust=0.5,size=12)) +
+    #scale_x_continuous(limit=c(-55000,60000)) +
     scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted")
   
   if(!legend) {
@@ -413,17 +414,17 @@ map_preds = function(d_plot, title, legend) {
 d_plot = d_plot_pre %>%
   filter(clim_metric == "dob",
          vegtype == "mch")
-p2 = map_preds(d_plot, title = "Montane chaparral", legend=TRUE)
+p2 = map_preds(d_plot, title = "b) Predictions: montane chaparral", legend=FALSE)
 
 d_plot = d_plot_pre %>%
   filter(clim_metric == "dob",
          vegtype == "mhw")
-p3 = map_preds(d_plot, title = "Montane hardwoods", legend=TRUE)
+p3 = map_preds(d_plot, title = "c) Predictions: montane hardwoods", legend=TRUE)
 
 d_plot = d_plot_pre %>%
   filter(clim_metric == "dob",
          vegtype == "smc")
-p4 = map_preds(d_plot, title = "Sierra mixed-conifer", legend=TRUE)
+p4 = map_preds(d_plot, title = "d) Predictions: Sierra mixed-conifer", legend=FALSE)
 
 
 
@@ -431,11 +432,11 @@ p4 = map_preds(d_plot, title = "Sierra mixed-conifer", legend=TRUE)
 
 d_plot = d %>%
   filter(cv_text %in% c("MCH","MHW","SMC")) %>%
-  mutate(cv_text = recode(cv_text,SMC = "Sierra mixed-conifer",MHW = "Montane hardwoods",MCH = "Montane chaparral")) %>%
-  mutate(cv_text = factor(cv_text,levels=c("Montane chaparral","Montane hardwoods","Sierra mixed-conifer")))
+  mutate(cv_text = recode(cv_text,SMC = "Sierra\nmixed-conifer",MHW = "Montane\nhardwoods",MCH = "Montane\nchaparral")) %>%
+  mutate(cv_text = factor(cv_text,levels=c("Montane\nchaparral","Montane\nhardwoods","Sierra\nmixed-conifer")))
 
 
-ggplot(d_plot) +
+p1 = ggplot(d_plot) +
   geom_sf(data = tuol_mask, fill="grey90", color=NA) +
   geom_tile(aes(fill=cv_text, x=x,y=y)) +
   #coord_equal() +
@@ -443,13 +444,33 @@ ggplot(d_plot) +
   geom_sf(data=bboxes,fill=NA,color="grey20",size=0.25) +
   #geom_sf(data = tuol_mask, fill=NA, color="grey20") +
   #scale_fill_viridis(na.value="white",discrete=TRUE,option="inferno",name="Vegetation type") +
-  theme(legend.position="bottom") +
+  theme(legend.position="right") +
   theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+  theme(panel.border=element_rect(fill=NA)) +
   theme(strip.text=element_text(size=12),strip.background=element_blank()) +
   theme(panel.spacing=unit(1,"lines")) +
   #theme(panel.border=element_rect(fill=NA, color=NA)) +
-  theme(legend.text=element_text(size=9),legend.title=element_text(size=11)) +
-  scale_fill_manual(values=c("#22BBD3","#5C6070", "#C1495D","grey50"), name = NULL)
- 
+  theme(legend.text=element_text(size=9),legend.title=element_text(size=9)) +
+  scale_fill_manual(values=c("#22BBD3","#5C6070", "#C1495D","grey50"), name = "Vegetation type") +
+  labs(title="a) Actual vegetation distribution") +
+  theme(legend.text = element_text(margin = margin(t = 2,b=2, unit = "pt"),size=8)) +
+  theme(plot.title = element_text(size=9))
+
+
+library(gridExtra)
+
+layout = rbind(c(1,1,1),
+           c(NA,2,NA),
+           c(NA,3,3),
+           c(NA,4,NA))
+
+png("figures/veg_pred/veg_pred_main.png",res=200, width = 1000, height = 1000)
+grid.arrange(p1,p2,p3,p4,
+                ncol = 3,
+             heights = c(1,1,1,1),
+             widths = c(0.03,1,0.375),
+             layout_matrix = layout)
+dev.off()
+
 
 
