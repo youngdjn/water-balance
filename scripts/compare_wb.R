@@ -84,7 +84,7 @@ mapfun <- function(d,column,title,scale.limits=NULL, colorscale, colorscale_dir)
     theme(panel.border=element_rect(fill=NA)) +
     theme(legend.text=element_text(size=9)) +
     labs(title=title) +
-    theme(plot.title=element_text(hjust=0.5,size=12)) +
+    theme(plot.title=element_text(size=14)) +
     scale_fill_viridis(na.value="white",option=colorscale, direction = colorscale_dir,limits=scale.limits, begin = begin, end = end) +
     scale_x_continuous(limit=c(-55000,60000))
   
@@ -101,13 +101,13 @@ for(scen in scenarios) {
     # remove model cells that didn't run
   
   # Dobrowski model plots
-  a <- ggplotGrob(mapfun(d_plot,column = "dob_aet025", colorscale = "viridis", colorscale_dir = -1, title = "AET (PET coefficient = 0.25)"))
-  b <- ggplotGrob(mapfun(d_plot,column = "dob_aet100", colorscale = "viridis", colorscale_dir = -1, title = "AET (PET coefficient = 1.00)"))
-  c <- ggplotGrob(mapfun(d_plot,column = "diff_dob_aet", colorscale = "magma", colorscale_dir = 1, title = "AET difference"))
+  a <- ggplotGrob(mapfun(d_plot,column = "dob_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
+  b <- ggplotGrob(mapfun(d_plot,column = "dob_aet100", colorscale = "viridis", colorscale_dir = -1, title = "a) AET (PET coefficient = 1.00)"))
+  c <- ggplotGrob(mapfun(d_plot,column = "diff_dob_aet", colorscale = "magma", colorscale_dir = 1, title = "e) AET difference"))
   
-  e <- ggplotGrob(mapfun(d_plot,column = "dob_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "CWD (PET coefficient = 0.25)"))
-  f <- ggplotGrob(mapfun(d_plot,column = "dob_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "CWD (PET coefficient = 1.00)"))
-  g <- ggplotGrob(mapfun(d_plot,column = "diff_dob_cwd", colorscale = "magma", colorscale_dir = 1, title = "CWD difference"))
+  e <- ggplotGrob(mapfun(d_plot,column = "dob_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "d) CWD (PET coefficient = 0.25)"))
+  f <- ggplotGrob(mapfun(d_plot,column = "dob_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "b) CWD (PET coefficient = 1.00)"))
+  g <- ggplotGrob(mapfun(d_plot,column = "diff_dob_cwd", colorscale = "magma", colorscale_dir = 1, title = "f) CWD difference"))
   
   png(paste0("figures/map_wb/dob_",scen,".png"), width = 3300,height = 2000, res=250)
   grid.arrange(b,f,a,e,c,g,ncol=2)

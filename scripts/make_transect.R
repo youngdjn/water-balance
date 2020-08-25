@@ -2,7 +2,7 @@ library(raster)
 library(sf)
 library(tidyverse)
 
-d = brick("data/wb_output/rasters/landscape_wb_inputs_outputs.grd")
+d = brick("data/wb_output/rasters/base.grd")
 
 rad = d$rad.03
 elev = d$elev
@@ -15,8 +15,8 @@ for(bin in 0:9) {
   elev_high = quantile(elev,bin*.1+0.1)
   
   cells_in_elev = elev > elev_low & elev < elev_high
-  rad_low = quantile(rad[cells_in_elev],0.10)
-  rad_high = quantile(rad[cells_in_elev],0.90)
+  rad_low = quantile(rad[cells_in_elev],0.25)
+  rad_high = quantile(rad[cells_in_elev],0.75)
   
   s_facing = rad > rad_high & cells_in_elev
   n_facing = rad < rad_low & cells_in_elev
@@ -76,19 +76,42 @@ d_plot = d_df_summ %>%
                           "AET.Dobr.cc100")) %>%
   mutate(wb_metric = recode(wb_metric,"AET.Dobr.cc100" = "1","AET.Dobr.cc025" =  "0.25")) %>%
   mutate(wb_metric = factor(wb_metric,levels=c("1","0.25"))) %>%
-  mutate(radiation = recode(radiation,"high" = "South","low" =  "North") %>% as.factor) %>%
-  mutate(radiation = factor(radiation,levels=c("South","North"))) %>%
+  mutate(radiation = recode(radiation,"high" = "High","low" =  "Low") %>% as.factor) %>%
+  mutate(radiation = factor(radiation,levels=c("High","Low"))) %>%
   mutate(elev = as.numeric(as.character(elev_bins)))
 
 p = ggplot(d_plot,aes(x=elev,y=mean,color=wb_metric,linetype=radiation, group=interaction(wb_metric,radiation))) +
   geom_line(size=1) +
   scale_color_manual(name="PET coefficient", values = c("slateblue","darkorange")) +
-  scale_linetype_discrete(name="Aspect") +
+  scale_linetype_discrete(name="Solar radiation") +
   theme_bw(12) +
   labs(x = "Elevation (m)",
        y = "Annual AET (mm)")
 
-png("figures/transect_gradient.png", width=1100,height=800,res=200)
+png("figures/transect_gradient.png", width=1000,height=800,res=200)
+p
+dev.off()
+
+
+# ## Repeat for CWD
+# d_plot = d_df_summ %>%
+#   filter(wb_metric %in% c("Deficit.Dobr.cc025",
+#                           "Deficit.Dobr.cc100")) %>%
+#   mutate(wb_metric = recode(wb_metric,"Deficit.Dobr.cc100" = "1","Deficit.Dobr.cc025" =  "0.25")) %>%
+#   mutate(wb_metric = factor(wb_metric,levels=c("1","0.25"))) %>%
+#   mutate(radiation = recode(radiation,"high" = "South","low" =  "North") %>% as.factor) %>%
+#   mutate(radiation = factor(radiation,levels=c("South","North"))) %>%
+#   mutate(elev = as.numeric(as.character(elev_bins)))
+# 
+# p = ggplot(d_plot,aes(x=elev,y=mean,color=wb_metric,linetype=radiation, group=interaction(wb_metric,radiation))) +
+#   geom_line(size=1) +
+#   scale_color_manual(name="PET coefficient", values = c("slateblue","darkorange")) +
+#   scale_linetype_discrete(name="Aspect") +
+#   theme_bw(12) +
+#   labs(x = "Elevation (m)",
+#        y = "Annual CWD (mm)")
+
+png("figures/transect_gradient_CWD.png", width=1000,height=800,res=200)
 p
 dev.off()
 
