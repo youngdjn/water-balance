@@ -53,17 +53,19 @@ p_comb = ggplot(d) +
   geom_raster(aes(x=x,y=y,fill=elev), alpha=0.4) +
   scale_fill_viridis(name = bquote('Elevation'~(m)^phantom(2)), guide = guide_colorbar(title.position = "top", title.hjust = 0.5), direction=-1) +
 
-  #coord_equal() +
-  theme_void() +
+  theme_bw() +
   theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white"),
         legend.position = "bottom", legend.title = element_text(size=10),
         legend.key.width = unit(0.8,"cm")) +
   #theme(strip.text=element_text(size=12),strip.background=element_blank()) +
   #theme(panel.spacing=unit(1,"lines")) +
   #theme(legend.text=element_text(size=9)) +
-  labs(title="   b) Study area") +
+  labs(title="b) Study area") +
   #theme(plot.title=element_text(hjust=0.5,size=12)) +
-  geom_sf(data=tuol_mask, fill=NA,color="red") 
+  geom_sf(data=tuol_mask, fill=NA,color="red") +
+  coord_sf() +
+  scale_x_continuous(expand=c(0,0), n.breaks = 2, breaks = waiver(), name = NULL) +
+  scale_y_continuous(expand=c(0,0), n.breaks = 2, breaks = waiver(), name = NULL)
 
 
 
@@ -85,6 +87,6 @@ p_a = ggplot() +
 
 
 ## Alternative for single (combined) study area panel
-png("figures/context_map_comb.png", width = 1400, height = 540, res = 150)
-grid.arrange(p_a, p_comb, widths = c(1,3),ncol=2)
+png("figures/context_map_comb.png", width = 1200, height = 540, res = 150)
+grid.arrange(p_a, p_comb, widths = c(1,3.4),ncol=2)
 dev.off()
