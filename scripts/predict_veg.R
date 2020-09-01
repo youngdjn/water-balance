@@ -6,12 +6,28 @@ library(ggthemes)
 library(ggspatial)
 library(mgcv)
 library(pROC)
+library(irr)
+
+kappaval = function(cols) {
+  a = kappa2(cols)
+  k = a$value
+  return(k)
+}
 
 fstat <- function(predict, actual_labels){
   precision <- sum(predict & actual_labels) / sum(predict)
   recall <- sum(predict & actual_labels) / sum(actual_labels)
   fmeasure <- 2 * precision * recall / (precision + recall)
 }
+
+#true skill statistic
+tss <- function(pred, obs){
+  tpr = sum(pred & obs) / (sum(pred&obs) + sum(!pred&obs))
+  tnr = sum(!pred & !obs) / (sum(!pred & !obs) + sum(pred&!obs))
+  return(tpr+tnr-1)
+}
+
+
 
 d_rast = brick("data/wb_output/rasters/base.grd")
 cv.type <- raster("data/calveg_clipped/calveg_clipped_raster_whrtype.tif")
@@ -330,9 +346,15 @@ d_eval_presab_summ = d_eval_presab %>%
   # what fraction of the cells in that had presence in either were the same in both?
   summarize(prop_same = sum(presab_summ == "both")/sum(presab_summ != "neither"),
             f_stat = fstat(presab_025,presab_100),
+            kappa = kappaval(cbind(presab_025,presab_100)),
+            tss = tss(presab_025,presab_100),
             auc_025 = auc(obs,prob_025),
-            auc_100 = auc(obs,prob_100)) %>%
-  select(clim_metric, vegtype, auc_025, auc_100, prop_same, f_stat)
+            auc_100 = auc(obs,prob_100),
+            auc_100_train = auc(obs[!is.na(training)], prob_100[!is.na(training)]),
+            auc_025_train = auc(obs[!is.na(training)], prob_025[!is.na(training)]),
+            auc_100_valid = auc(obs[is.na(training)], prob_100[is.na(training)]),
+            auc_025_valid = auc(obs[is.na(training)], prob_025[is.na(training)])) %>%
+  select(clim_metric, vegtype, auc_025, auc_100, prop_same, tss) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
 
 
 ## get AUCs for ppt models
