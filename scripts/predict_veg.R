@@ -276,8 +276,8 @@ ggplot(d) +
 
 d_plot = d %>%
   filter(!is.na(tuol_overlap)) %>%
-  mutate(training_bool = ifelse(!is.na(training),"Training","Non-training")) %>%
-  mutate(training_bool = factor(training_bool, levels = c("Non-training","Training"))) %>%
+  mutate(training_bool = ifelse(!is.na(training),"Training","Validation")) %>%
+  mutate(training_bool = factor(training_bool, levels = c("Validation","Training"))) %>%
   arrange(training_bool)
 
 p = ggplot(d_plot, aes(x = aet_dob100, y = cwd_dob100, color=training_bool)) +
@@ -352,9 +352,9 @@ d_eval_presab_summ = d_eval_presab %>%
             auc_100 = auc(obs,prob_100),
             auc_100_train = auc(obs[!is.na(training)], prob_100[!is.na(training)]),
             auc_025_train = auc(obs[!is.na(training)], prob_025[!is.na(training)]),
-            auc_100_valid = auc(obs[is.na(training)], prob_100[is.na(training)]),
-            auc_025_valid = auc(obs[is.na(training)], prob_025[is.na(training)])) %>%
-  select(clim_metric, vegtype, auc_025, auc_100, prop_same, tss) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
+            auc_100_val = auc(obs[is.na(training)], prob_100[is.na(training)]),
+            auc_025_val = auc(obs[is.na(training)], prob_025[is.na(training)])) %>%
+  select(clim_metric, vegtype, auc_025_val, auc_100_val, prop_same, tss) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
 
 
 ## get AUCs for ppt models
@@ -364,7 +364,7 @@ d_eval_ppt = d_eval_long %>%
   mutate_at(vars(obs,presab),as.logical) %>%
   group_by(vegtype) %>%
   # what fraction of the cells in that had presence in either were the same in both?
-  summarize(auc_ppt = auc(obs,prob)) %>%
+  summarize(auc_ppt = auc(obs[is.na(training)], prob[is.na(training)])) %>%
   mutate(clim_metric = "ppt")
 
 
