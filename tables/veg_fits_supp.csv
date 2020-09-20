@@ -1,4 +1,4 @@
-vegtype,auc_025,auc_100,prop_same,f_stat
-mch,0.78,0.72,0.24,0.39
-mhw,0.66,0.66,0.57,0.73
-smc,0.77,0.73,0.33,0.5
+vegtype,auc_025_val,auc_100_val,prop_same,tss
+mch,0.78,0.7,0.23,0.3
+mhw,0.65,0.65,0.57,0.68
+smc,0.78,0.73,0.33,0.41

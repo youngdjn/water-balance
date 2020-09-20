@@ -114,13 +114,13 @@ for(scen in scenarios) {
   dev.off()
   
   # Wilmott model plots
-  a <- ggplotGrob(mapfun(d_plot,column = "wil_aet025", colorscale = "viridis", colorscale_dir = -1, title = "AET (PET coefficient = 0.25)"))
-  b <- ggplotGrob(mapfun(d_plot,column = "wil_aet100", colorscale = "viridis", colorscale_dir = -1, title = "AET (PET coefficient = 1.00)"))
-  c <- ggplotGrob(mapfun(d_plot,column = "diff_wil_aet", colorscale = "magma", colorscale_dir = 1, title = "AET difference"))
+  a <- ggplotGrob(mapfun(d_plot,column = "wil_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
+  b <- ggplotGrob(mapfun(d_plot,column = "wil_aet100", colorscale = "viridis", colorscale_dir = -1, title = "a) AET (PET coefficient = 1.00)"))
+  c <- ggplotGrob(mapfun(d_plot,column = "diff_wil_aet", colorscale = "magma", colorscale_dir = 1, title = "e) AET difference"))
   
-  e <- ggplotGrob(mapfun(d_plot,column = "wil_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "CWD (PET coefficient = 0.25)"))
-  f <- ggplotGrob(mapfun(d_plot,column = "wil_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "CWD (PET coefficient = 1.00)"))
-  g <- ggplotGrob(mapfun(d_plot,column = "diff_wil_cwd", colorscale = "magma", colorscale_dir = 1, title = "CWD difference"))
+  e <- ggplotGrob(mapfun(d_plot,column = "wil_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "d) CWD (PET coefficient = 0.25)"))
+  f <- ggplotGrob(mapfun(d_plot,column = "wil_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "b) CWD (PET coefficient = 1.00)"))
+  g <- ggplotGrob(mapfun(d_plot,column = "diff_wil_cwd", colorscale = "magma", colorscale_dir = 1, title = "f) CWD difference"))
   
   png(paste0("figures/map_wb/wil_",scen,".png"), width = 3300,height = 2000, res=250)
   grid.arrange(b,f,a,e,c,g,ncol=2)
