@@ -1,7 +1,5 @@
-#setwd("~/UC Davis/Research projects/Deficit project/For running at RSL")
-
-
-### This is the script published by Dobrowski, with additions by Derek Young at the end
+### Compute Dobrowski water balance for a set of points
+### This is the script published by Dobrowski et al. (2013), with additions by the authors of the submitted GCB manuscript at the end following the separator (######).
 
 
 
@@ -207,7 +205,7 @@ monthlengths <- function()
 
 
 
-############## From here down are additions by Derek Young ##########
+############## From here down are additions by the authors of the GCB manuscript ##########
 
 
 

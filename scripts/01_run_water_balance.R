@@ -1,3 +1,6 @@
+## Compute Dobrowski and Thornthwaite water balance values across the study landscape
+## Input values are provided as a raster with parameters named as expected by (and specified in) "water_balance_models/point_wb.R" 
+
 library(raster)
 library(tidyverse)
 library(furrr)
@@ -58,6 +61,15 @@ wbparams_consttempppt = wbparams_base %>%
   mutate_at(vars(starts_with("td.")), ~td_mean) %>%
   mutate(scenario = "consttempppt")
 
+## Aseasonal temp and precip, hot dry
+wbparams_consttemppptHotdry = wbparams_base %>%
+  mutate_at(vars(starts_with("ppt.")), ~ppt_mean/2) %>%
+  mutate_at(vars(starts_with("tmin.")), ~tmin_mean+10) %>%
+  mutate_at(vars(starts_with("tmean.")), ~tmean_mean+10) %>%
+  mutate_at(vars(starts_with("tmax.")), ~tmax_mean+10) %>%
+  mutate_at(vars(starts_with("td.")), ~td_mean) %>%
+  mutate(scenario = "consttemppptHotdry")
+
 ## Double precip
 wbparams_doubleppt = wbparams_base %>%
   mutate_at(vars(starts_with("ppt.")), ~.*2) %>%
@@ -75,7 +87,10 @@ inputs = list(base = wbparams_base,
               constppt = wbparams_constppt,
               consttempppt = wbparams_consttempppt,
               doubleppt = wbparams_doubleppt,
-              consttemppptdoubleppt = wbparams_consttemppptdoubleppt)
+              consttemppptdoubleppt = wbparams_consttemppptdoubleppt,
+              consttemppptHotdry = wbparams_consttemppptHotdry)
+
+# inputs = inputs[6:7]
 
 wb = future_map(inputs,set_wb,PET.methods = PET.methods, PET.mods = PET.mods, AET.methods = AET.methods, monthly=FALSE, dobr.wb = TRUE,
                .progress = TRUE,

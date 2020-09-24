@@ -1,3 +1,5 @@
+# Make a map of the study area and a vicinity map (Fig. 2)
+
 library(raster)
 library(sf)
 library(tidyverse)

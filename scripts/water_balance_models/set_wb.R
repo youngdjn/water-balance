@@ -1,3 +1,5 @@
+# Function to model water balance for a specified set of methods for many points (e.g., pixels)
+
 source("scripts/water_balance_models/point_wb.R")
 source("scripts/water_balance_models/wb_utils.R")
 source("scripts/water_balance_models/dobrowski_wb.R")

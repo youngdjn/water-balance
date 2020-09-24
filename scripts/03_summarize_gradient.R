@@ -1,3 +1,5 @@
+# Summarize landscape water balance along an elevation gradient and across aspects (Fig. 4)
+
 library(raster)
 library(sf)
 library(tidyverse)
