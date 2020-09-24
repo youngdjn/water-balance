@@ -1,3 +1,5 @@
+# For each climate scenario and water balance model (Dobrowski and Thornthwaite), compare the model based on PET coef = 0.25 to the one based on PET coef = 1.00 and produce the mapped water balance figure and heatmap comparison figures
+
 library(raster)
 library(sf)
 library(tidyverse)
@@ -12,6 +14,7 @@ d_consttemp = brick("data/wb_output/rasters/consttemp.grd")
 d_consttempppt = brick("data/wb_output/rasters/consttempppt.grd")
 d_doubleppt = brick("data/wb_output/rasters/doubleppt.grd")
 d_consttemppptdoubleppt = brick("data/wb_output/rasters/consttemppptdoubleppt.grd")
+d_consttemppptHotdry = brick("data/wb_output/rasters/consttemppptHotdry.grd")
 
 d_base = d_base %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
   mutate(scenario = "base")
@@ -25,6 +28,8 @@ d_doubleppt = d_doubleppt %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_t
   mutate(scenario = "doubleppt")
 d_consttemppptdoubleppt = d_consttemppptdoubleppt %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
   mutate(scenario = "consttemppptdoubleppt")
+d_consttemppptHotdry = d_consttemppptHotdry %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
+  mutate(scenario = "consttemppptHotdry")
 
 d_orig = rbind(d_base,d_constppt,d_consttemp,d_consttempppt,d_doubleppt,d_consttemppptdoubleppt)
 
@@ -216,8 +221,12 @@ f <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "
 d_plot = prep_plot_scenario(d,scen="consttemppptdoubleppt")
 g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Flat temp, 2x flat ppt"))
 
+d_plot = prep_plot_scenario(d,scen="consttemppptHotdry")
+h <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Flat temp, flat ppt, Temp+10deg, Ppt/2"))
+
+
 png(paste0("figures/heatmap_diff/dob_all.png"), width = 1800,height = 5000, res=250)
-grid.arrange(a,b,c,e,f,g,ncol=1)
+grid.arrange(a,b,c,e,f,g,h,ncol=1)
 dev.off()
 
 ### Make a base Dobrowski and Wilmott figures

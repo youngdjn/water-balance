@@ -1,3 +1,5 @@
+# Function to model water balance for a single point using a specified set of water balance models
+
 #
 # Point_WB
 #	Runs every permutation of selected water balance methods for a point.
@@ -17,22 +19,16 @@
 # PET.methods:
 #	character vector of PET methods to use. Choices are:
 #		"Thornthwaite"	Thornthwaite 1948
-#		"Dingman"		Dingman 2002
-#		"Turc"		Turc 1961
+
 #
 # PET.mods:
 #	character vector of PET modifiers to use. Choices are:
 #		"STD"		Standard day length modifier
-#		"SRI"		Solar radiation index
-#		"HLI"		Heat load index
-#		"DL1"		Topographically modified day length I: based on R.h instead of day length
-#		"DL2"		Topographically modified day length II: Scale standard day length by SRI
+#		"cc025"		Set PET coefficient to 0.25 (vs. the default value of 1.00)
 #
 # AET.methods:
 #	character vector of AET methods to use. Choices are:
-#		"Thornthwaite"	Thornthwaite 1948
-#		"Dingman"		Dingman 2002
-#		"Wilmott"		Wilmott 1985
+#		"Wil150mm"		Wilmott 1985, assuming soil WHC of 150mm
 #
 # monthly:
 #	boolean: if TRUE, report monthly values, if FALSE, report annual summary. Default FALSE.

@@ -1,30 +1,9 @@
-#
 # PET_methods:
 #     Various ways of calculating PET from WB.params (see Point_WB.R for description).
-#     Not all methods require all elements of WB.params to be populated. See documentation for details.
+#     Not all methods require all elements of WB.params to be populated.
 #
 #     Each method returns a 12-element vector of monthly PET values.
 #
-
-#source("utils.R")
-
-
-#PET.PriestleyTaylor <- function(WB.params) {
-#  T.m <- WB.params$T.m
-#  R.m <- (WB.params$R.m * 0.0036) / monthlengths() # convert Wh/sq. m/month to MJ/sq. m/day
-#	
-#	lambda <- 2.45                 # latent heat of vaporization; MJ / kg
-#	s      <- SatVapPresSlope(T.m) # slope of saturation vapor pressure; kPa / C
-#	gamma  <- 0.066                # psychrometric constant; kPa / C
-#	alpha  <- 1.26                 # Priestley-Taylor coefficient; unitless
-#	PET.m  <- (1/lambda) * ((s * R.m) / (s + gamma)) * alpha * monthlengths()
-#	PET.m[PET.m < 0] <- 0
-#	
-#	# Note that when all of the units cancel, you're left with kg water/m^2.
-#	# Per the density of water, this is equivalent to mm of water.
-#	return(PET.m)
-#}
-
 
 PET.PT <- function(WB.params) {
   

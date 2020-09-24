@@ -1,10 +1,7 @@
-#
 # PET_mods:
 #     Various modifications to PET. Pass in monthly PET values and
 #     WB.params (as described in Point_WB.R) and get back modified
 #     monthly PET values.
-#
-#     For descriptions of particular modifications, see documentation.
 #
 
 

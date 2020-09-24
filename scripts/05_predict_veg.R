@@ -1,3 +1,5 @@
+# Use computed water balance values to predict vegetation distributions across the study landscape, and compute model fit/validation and agreement
+
 library(raster)
 library(sf)
 library(tidyverse)
@@ -337,24 +339,37 @@ d_eval_presab = d_eval_presab %>%
                                  presab_025 & !presab_100 ~ "low",
                                  presab_100 & presab_025 ~ "both",
                                  TRUE ~ "neither"))
-  
+
+### Make a ppt presab file to join to the wb one for computing agreement
+d_eval_presab_ppt = d_eval_long %>%
+  filter(clim_metric == "tempppt") %>%
+  select(ID,vegtype,presab_ppt = presab) %>%
+  mutate(vegtype = as.character(vegtype))
+
+
+
 library(pROC)
 d_eval_presab_summ = d_eval_presab %>%
   mutate(vegtype = as.character(vegtype)) %>%
-  mutate_at(vars(obs,presab_025,presab_100),as.logical) %>%
+  left_join(d_eval_presab_ppt,by=c("ID","vegtype")) %>%
+  mutate_at(vars(obs,presab_025,presab_100,presab_ppt),as.logical) %>%
   group_by(clim_metric,vegtype) %>%
   # what fraction of the cells in that had presence in either were the same in both?
   summarize(prop_same = sum(presab_summ == "both")/sum(presab_summ != "neither"),
             f_stat = fstat(presab_025,presab_100),
             kappa = kappaval(cbind(presab_025,presab_100)),
             tss = tss(presab_025,presab_100),
-            auc_025 = auc(obs,prob_025),
-            auc_100 = auc(obs,prob_100),
-            auc_100_train = auc(obs[!is.na(training)], prob_100[!is.na(training)]),
-            auc_025_train = auc(obs[!is.na(training)], prob_025[!is.na(training)]),
-            auc_100_val = auc(obs[is.na(training)], prob_100[is.na(training)]),
-            auc_025_val = auc(obs[is.na(training)], prob_025[is.na(training)])) %>%
-  select(clim_metric, vegtype, auc_025_val, auc_100_val, prop_same, tss) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
+            auc_025 = auc(obs,prob_025) %>% as.numeric(),
+            auc_100 = auc(obs,prob_100) %>% as.numeric(),
+            auc_100_train = auc(obs[!is.na(training)], prob_100[!is.na(training)]) %>% as.numeric(),
+            auc_025_train = auc(obs[!is.na(training)], prob_025[!is.na(training)]) %>% as.numeric(),
+            auc_100_val = auc(obs[is.na(training)], prob_100[is.na(training)]) %>% as.numeric(),
+            auc_025_val = auc(obs[is.na(training)], prob_025[is.na(training)]) %>% as.numeric(),
+            tss_ppt_025 = tss(presab_025,presab_ppt),
+            tss_ppt_100 = tss(presab_100,presab_ppt),
+            prop_same_ppt_025 = sum(presab_025 & presab_ppt) / sum(presab_025|presab_ppt),
+            prop_same_ppt_100 = sum(presab_100 & presab_ppt) / sum(presab_100|presab_ppt)) %>%
+  select(clim_metric, vegtype, auc_025_val, auc_100_val, prop_same, tss, tss_ppt_025, tss_ppt_100, prop_same_ppt_025, prop_same_ppt_100) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
 
 
 ## get AUCs for ppt models
@@ -364,7 +379,7 @@ d_eval_ppt = d_eval_long %>%
   mutate_at(vars(obs,presab),as.logical) %>%
   group_by(vegtype) %>%
   # what fraction of the cells in that had presence in either were the same in both?
-  summarize(auc_ppt = auc(obs[is.na(training)], prob[is.na(training)])) %>%
+  summarize(auc_ppt = auc(obs[is.na(training)], prob[is.na(training)]) %>% as.numeric) %>%
   mutate(clim_metric = "ppt")
 
 

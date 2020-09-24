@@ -1,20 +1,9 @@
-#
 # AET_methods:
 #     Various ways of calculating AET given monthly PET and WB.params (see Point_WB.R for details).
-#     Not all methods require all elements of WB.params to be populated. See documentation for details.
+#     Not all methods require all elements of WB.params to be populated.
 #
 #     Each method returns a 12-element vector of monthly AET values.
 #
-
-# Test values
-#T.m   <- c(-0.8,-0.6,0.7,3.1,7.1,12.8,17.4,18.1,13.5,9.4,4.7,-2.3)
-#P.m   <- c(394,201,33,118,51,2,10,2,40,29,44,14)
-#P.m   <- c(94,33,20,18,51,2,8,2,10,15,34,34)
-#S.max <- 180
-#PET.m <- c(13.79687, 14.52889, 19.75247, 25.19059, 36.73518, 51.10025, 65.13021, 59.57761, 42.96944, 28.98110, 17.42535, 13.51610)
-#PET.m <- c(0.000000, 0.000000, 4.355127, 19.12804, 46.87502, 82.57885, 112.4007, 109.3416, 72.94102,  48.0792,  21.6015, 0.000000)
-
-#source("utils.R")
 
 AET.Wil <- function(PET.m, WB.params)
 {
