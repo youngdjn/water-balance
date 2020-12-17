@@ -35,16 +35,32 @@ wbparams_base <- wb.inputs.df[complete.cases(wb.inputs.df),] %>%
 
 ## ALTERNATE PARAMETER DFS
 
-tmin_mean_overall = wbparams_base %>% select(starts_with("tmin.")) %>% rowMeans %>% mean
-tmean_mean_overall = wbparams_base %>% select(starts_with("tmean.")) %>% rowMeans %>% mean
-tmax_mean_overall = wbparams_base %>% select(starts_with("tmax.")) %>% rowMeans %>% mean
-td_mean_overall = wbparams_base %>% select(starts_with("td.")) %>% rowMeans %>% mean
+## Get the mean temp and ppt across our dataset
+tmin01_mean = wbparams_base %>% select(tmin.01) %>% pull %>% mean
+tmin07_mean = wbparams_base %>% select(tmin.07) %>% pull %>% mean
+
+tmax01_mean = wbparams_base %>% select(tmax.01) %>% pull %>% mean
+tmax07_mean = wbparams_base %>% select(tmax.07) %>% pull %>% mean
+
+ppt01_mean = wbparams_base %>% select(ppt.01) %>% pull %>% mean
+ppt07_mean = wbparams_base %>% select(ppt.07) %>% pull %>% mean
+
 
 #### Get temp absolute deviation from overall mean for each month, and ppt relative deviation
+
+
 wbparams_rel = wbparams_base %>%
-  mutate(across(starts_with("tmin."),~.x-mean(.x),.names="dev_{.col}"),
-         across(starts_with("tmax."),~.x-mean(.x),.names="dev_{.col}"),
-         across(starts_with("ppt."),~.x/mean(.x),.names="dev_{.col}"))
+  mutate(tot_ppt = ppt.01+ppt.02+ppt.03+ppt.04+ppt.05+ppt.06+ppt.07+ppt.08+ppt.09+ppt.10+ppt.11+ppt.12,
+         mean_temp = (tmin.01+tmin.02+tmin.03+tmin.04+tmin.05+tmin.06+tmin.07+tmin.08+tmin.09+tmin.10+tmin.11+tmin.12+tmax.01+tmax.02+tmax.03+tmax.04+tmax.05+tmax.06+tmax.07+tmax.08+tmax.09+tmax.10+tmax.11+tmax.12)/24)
+
+overall_mean_annual_ppt = mean(wbparams_rel$tot_ppt)
+overall_mean_annual_temp = mean(wbparams_rel$mean_temp)
+
+## temp and ppt offset is the same across months for each plot
+wbparams_rel = wbparams_rel %>%
+   mutate(across(starts_with("ppt."),~tot_ppt/overall_mean_annual_ppt,.names="dev_{.col}"),
+          across(starts_with("tmin."),~mean_temp-overall_mean_annual_temp,.names="dev_{.col}"),
+          across(starts_with("tmax."),~mean_temp-overall_mean_annual_temp,.names="dev_{.col}"))
  
 adjust_clim = function(df, base_name,dev_name,monthly_mean, multiply=FALSE) {
   monthly_mean_rep = replicate(nrow(df),monthly_mean) %>% t
@@ -65,6 +81,14 @@ compute_tmean = function(df) {
   df[,tmean_cols] = (df[,tmin_cols] + df[,tmax_cols])/2
   return(df)  
 }
+
+
+#### To shift precipitation:
+## Get each site's tot annual precip
+## Get each site's deviation from tot annual across all sites
+## Apply this same deviation to all months
+
+
 
 
 #### Zone 4 (hot desert)
