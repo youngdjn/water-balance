@@ -1,7 +1,5 @@
 # PET_methods:
-#     Various ways of calculating PET from WB.params (see Point_WB.R for description).
-#     Not all methods require all elements of WB.params to be populated.
-#
+#     Calculating PET from WB.params (see Point_WB.R for description).
 #     Each method returns a 12-element vector of monthly PET values.
 #
 
@@ -43,10 +41,7 @@ PET.PT <- function(WB.params) {
   Ra <- 24*60/pi*GSC*dr*(omegas*sin(phi)*sin(delt) +cos(phi)*cos(delt)*sin(omegas))    # Daily extraterrestrial radiation
   Rso <- Ra*(0.75+2e-5*elev)     #For a cloudless day, Rs is roughly 75% of extraterrestrial radiation (Ra)
   
-  #Rso from Dobrowski is per day. Convert back to P-T units
-  Rso <- Rso
-  
-  
+
   # radfraction is a measure of relative shortwave radiation, or of
   # possible radiation (cloudy vs. clear-sky)
   radfraction <- rad.nldas.m/Rso

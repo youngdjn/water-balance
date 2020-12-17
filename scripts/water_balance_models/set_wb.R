@@ -12,7 +12,7 @@ set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, d
     stop("Identifiers in column 'ID' must be unique")
   
   #in.data <- in.data[!is.na(in.data$rad.01),] ## remove a row with no rad data
-
+  
   T.m <- in.data[, grep("tmean.01", names(in.data))[1]:grep("tmean.12", names(in.data))]
   Tmin.m <- in.data[, grep("tmin.01", names(in.data))[1]:grep("tmin.12", names(in.data))]
   Tmax.m <- in.data[, grep("tmax.01", names(in.data))[1]:grep("tmax.12", names(in.data))]
@@ -45,24 +45,25 @@ set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, d
   #this is the predicted soil whc from the regression
   S.max.reg <- -3.618513 - 0.017472*E + 3.309366*L
 
-  points_data = data.frame()
-  
-  for(i in 1:nplots) {
-    
-    params <- list(T.m=T.m[i,], P.m=P.m[i,], R.m=R.m[i,], R.nldas.m=R.nldas.m[i,], L=L[i], E=E[i], S.max=150, PET.BCM.m=PET.BCM.m[i,], Tmin.m=Tmin.m[i,], Tmax.m=Tmax.m[i,], wind.m=wind.m[i,],month=month.param,Tdew.m=Tdew.m[i,])
-    output <- Point_WB(params, PET.methods, PET.mods, AET.methods, monthly=monthly)
-    
-    points_data = bind_rows(points_data,
-                            output)
-    
-    cat("Completed point ",i,"of",nplots,"\r")
-    
-  }
-  if(monthly) {
-    methods.mult <- 12
-  } else {
-    methods.mult <- 1
-  }
+  ### Commented out because no longer using Thornthwaite; Dobrowski only
+  # points_data = data.frame()
+  # 
+  # for(i in 1:nplots) {
+  #   
+  #   params <- list(T.m=T.m[i,], P.m=P.m[i,], R.m=R.m[i,], R.nldas.m=R.nldas.m[i,], L=L[i], E=E[i], S.max=150, PET.BCM.m=PET.BCM.m[i,], Tmin.m=Tmin.m[i,], Tmax.m=Tmax.m[i,], wind.m=wind.m[i,],month=month.param,Tdew.m=Tdew.m[i,])
+  #   output <- Point_WB(params, PET.methods, PET.mods, AET.methods, monthly=monthly)
+  #   
+  #   points_data = bind_rows(points_data,
+  #                           output)
+  #   
+  #   cat("Completed point ",i,"of",nplots,"\r")
+  #   
+  # }
+  # if(monthly) {
+  #   methods.mult <- 12
+  # } else {
+  #   methods.mult <- 1
+  # }
 
   
   #rownames(points_data) <- in.data$ID
@@ -109,7 +110,10 @@ set_wb <- function(in.data, PET.methods, PET.mods, AET.methods, monthly=FALSE, d
   }
   
   # merge dobrowski and non-dobrowski
-  wb_output = bind_cols(points_data,PET.dob,AET.dob,Deficit.dob)
+  # when included willmott: wb_output = bind_cols(points_data,PET.dob,AET.dob,Deficit.dob)
+  # now with only Dobrowski:
+  wb_output = bind_cols(PET.dob,AET.dob,Deficit.dob)
+  
   wb_output$ID = in.data$ID
   
   return(wb_output)
