@@ -121,7 +121,7 @@ wbparams_foc = wbparams_rel
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmax.", dev_name = "dev_tmax.", monthly_mean = tmax_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmin.", dev_name = "dev_tmin.", monthly_mean = tmin_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "ppt.", dev_name = "dev_ppt.", monthly_mean = ppt_monthly_mean, multiply=TRUE)
-wbparams_z04 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_")) %>%
+wbparams_z04 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_"),-tot_ppt,-mean_temp) %>%
   mutate(scenario = "Zone_04")
 
 
@@ -141,7 +141,7 @@ wbparams_foc = wbparams_rel
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmax.", dev_name = "dev_tmax.", monthly_mean = tmax_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmin.", dev_name = "dev_tmin.", monthly_mean = tmin_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "ppt.", dev_name = "dev_ppt.", monthly_mean = ppt_monthly_mean, multiply=TRUE)
-wbparams_z07 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_")) %>%
+wbparams_z07 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_"),-tot_ppt,-mean_temp) %>%
   mutate(scenario = "Zone_07")
 
 
@@ -161,7 +161,7 @@ wbparams_foc = wbparams_rel
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmax.", dev_name = "dev_tmax.", monthly_mean = tmax_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmin.", dev_name = "dev_tmin.", monthly_mean = tmin_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "ppt.", dev_name = "dev_ppt.", monthly_mean = ppt_monthly_mean, multiply=TRUE)
-wbparams_z11 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_")) %>%
+wbparams_z11 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_"),-tot_ppt,-mean_temp) %>%
   mutate(scenario = "Zone_11")
 
 
@@ -182,7 +182,7 @@ wbparams_foc = wbparams_rel
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmax.", dev_name = "dev_tmax.", monthly_mean = tmax_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmin.", dev_name = "dev_tmin.", monthly_mean = tmin_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "ppt.", dev_name = "dev_ppt.", monthly_mean = ppt_monthly_mean, multiply=TRUE)
-wbparams_z14 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_")) %>%
+wbparams_z14 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_"),-tot_ppt,-mean_temp) %>%
   mutate(scenario = "Zone_14")
 
 
@@ -203,7 +203,7 @@ wbparams_foc = wbparams_rel
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmax.", dev_name = "dev_tmax.", monthly_mean = tmax_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmin.", dev_name = "dev_tmin.", monthly_mean = tmin_monthly_mean)
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "ppt.", dev_name = "dev_ppt.", monthly_mean = ppt_monthly_mean, multiply=TRUE)
-wbparams_z29 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_")) %>%
+wbparams_z29 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_"),-tot_ppt,-mean_temp) %>%
   mutate(scenario = "Zone_29")
 
 
