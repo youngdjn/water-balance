@@ -33,6 +33,21 @@ AET.methods <- "Wil150mm"
 wbparams_base <- wb.inputs.df[complete.cases(wb.inputs.df),] %>%
   mutate(scenario = "base")
 
+
+
+#### Summarize site climate across all sites
+
+wbparams_summ = wbparams_base %>%
+  select(starts_with("ppt."),starts_with("tmin."),starts_with("tmax.")) %>%
+  summarize_all(mean)
+
+wbparams_summ %>% select(starts_with("ppt.")) %>% as.vector %>% dput
+wbparams_summ %>% select(starts_with("tmin.")) %>% as.vector %>% dput
+wbparams_summ %>% select(starts_with("tmax.")) %>% as.vector %>% dput
+
+
+
+
 ## ALTERNATE PARAMETER DFS
 
 ## Get the mean temp and ppt across our dataset
@@ -47,7 +62,6 @@ ppt07_mean = wbparams_base %>% select(ppt.07) %>% pull %>% mean
 
 
 #### Get temp absolute deviation from overall mean for each month, and ppt relative deviation
-
 
 wbparams_rel = wbparams_base %>%
   mutate(tot_ppt = ppt.01+ppt.02+ppt.03+ppt.04+ppt.05+ppt.06+ppt.07+ppt.08+ppt.09+ppt.10+ppt.11+ppt.12,
@@ -129,6 +143,26 @@ wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmin.", dev_name = "dev_tm
 wbparams_foc = adjust_clim(wbparams_foc, base_name = "ppt.", dev_name = "dev_ppt.", monthly_mean = ppt_monthly_mean, multiply=TRUE)
 wbparams_z07 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_")) %>%
   mutate(scenario = "Zone_07")
+
+
+#### Zone 11
+
+tmin_monthly_mean = c(-0.329374099999999, 1.13836744679, 5.148311925, 10.62599795, 
+                      16.103683975, 20.11362845321, 21.58137, 20.11362845321, 16.103683975, 
+                      10.62599795, 5.14831192500001, 1.13836744679)
+tmax_monthly_mean = c(8.4688886, 9.89140349160682, 13.77778645, 19.0866843, 24.39558215, 
+                      28.2819651083932, 29.70448, 28.2819651083932, 24.39558215, 19.0866843, 
+                      13.77778645, 9.89140349160683)
+ppt_monthly_mean = c(25.15121, 34.207457688658, 58.9495865, 92.747963, 126.5463395, 
+                     151.288468311342, 160.344716, 151.288468311342, 126.5463395, 
+                     92.747963, 58.9495865, 34.2074576886581)
+
+wbparams_foc = wbparams_rel
+wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmax.", dev_name = "dev_tmax.", monthly_mean = tmax_monthly_mean)
+wbparams_foc = adjust_clim(wbparams_foc, base_name = "tmin.", dev_name = "dev_tmin.", monthly_mean = tmin_monthly_mean)
+wbparams_foc = adjust_clim(wbparams_foc, base_name = "ppt.", dev_name = "dev_ppt.", monthly_mean = ppt_monthly_mean, multiply=TRUE)
+wbparams_z11 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_")) %>%
+  mutate(scenario = "Zone_11")
 
 
 #### Zone 14
@@ -225,6 +259,7 @@ wbparams_z29 = wbparams_foc %>% compute_tmean() %>% select(-starts_with("dev_"))
 inputs = list(base = wbparams_base,
               z04 = wbparams_z04,
               z07 = wbparams_z07,
+              z11 = wbparams_z11,
               z14 = wbparams_z14,
               z29 = wbparams_z29)
 
@@ -276,6 +311,4 @@ for(i in 1:length(inputs)) {
   
   
 }
-
-
 
