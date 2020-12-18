@@ -8,16 +8,24 @@ library(gridExtra)
 library(ggnewscale)
 library(viridis)
 library(RStoolbox)
+library(cowplot)
 
-d = brick("data/wb_output/rasters/base.grd")
+d_rast = brick("data/wb_output/rasters/base.grd")
 
-d = d %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310)
+d = d_rast %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310)
 
 d$x = st_coordinates(d)[,1]
 d$y = st_coordinates(d)[,2]
 
 ## Load study area mask
 tuol_mask <- st_read("data/tuolomne_mask/tuolomne_grid_mask.shp")
+
+
+### Make controur lines
+
+elev = d_rast[["elev"]]
+contour = rasterToContour(elev,levels=c(500,1000,1500,2000,2500,3000,3500))
+
 
 # ## Elevation panel
 # p_elev <- ggplot(d) +
@@ -68,6 +76,7 @@ p_comb = ggplot(d) +
   #labs(title="b) Study area") +
   #theme(plot.title=element_text(hjust=0.5,size=12)) +
   geom_sf(data=tuol_mask, fill=NA,color="red") +
+  geom_sf(data=contour %>% as("sf"), color="black",size=0.2,alpha=1) +
   coord_sf() +
   scale_x_continuous(expand=c(0,0), n.breaks = 2, breaks = waiver(), name = NULL) +
   scale_y_continuous(expand=c(0,0), n.breaks = 2, breaks = waiver(), name = NULL)
