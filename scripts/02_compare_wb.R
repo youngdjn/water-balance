@@ -9,53 +9,59 @@ library(ggthemes)
 library(gridExtra)
 
 d_base = brick("data/wb_output/rasters/base.grd")
-d_constppt = brick("data/wb_output/rasters/constppt.grd")
-d_consttemp = brick("data/wb_output/rasters/consttemp.grd")
-d_consttempppt = brick("data/wb_output/rasters/consttempppt.grd")
-d_doubleppt = brick("data/wb_output/rasters/doubleppt.grd")
-d_consttemppptdoubleppt = brick("data/wb_output/rasters/consttemppptdoubleppt.grd")
-d_consttemppptHotdry = brick("data/wb_output/rasters/consttemppptHotdry.grd")
+d_z04 = brick("data/wb_output/rasters/z04.grd")
+d_z07 = brick("data/wb_output/rasters/z07.grd")
+d_z11 = brick("data/wb_output/rasters/z11.grd")
+d_z14 = brick("data/wb_output/rasters/z14.grd")
+d_z29 = brick("data/wb_output/rasters/z29.grd")
 
 d_base = d_base %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
   mutate(scenario = "base")
-d_constppt = d_constppt %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
-  mutate(scenario = "constppt")
-d_consttemp = d_consttemp %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
-  mutate(scenario = "consttemp")
-d_consttempppt = d_consttempppt %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
-  mutate(scenario = "consttempppt")
-d_doubleppt = d_doubleppt %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
-  mutate(scenario = "doubleppt")
-d_consttemppptdoubleppt = d_consttemppptdoubleppt %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
-  mutate(scenario = "consttemppptdoubleppt")
-d_consttemppptHotdry = d_consttemppptHotdry %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
-  mutate(scenario = "consttemppptHotdry")
+d_z04 = d_z04 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
+  mutate(scenario = "z04")
+d_z07 = d_z07 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
+  mutate(scenario = "z07")
+d_z11 = d_z11 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
+  mutate(scenario = "z11")
+d_z14 = d_z14 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
+  mutate(scenario = "z14")
+d_z29 = d_z29 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
+  mutate(scenario = "z29")
 
-d_orig = rbind(d_base,d_constppt,d_consttemp,d_consttempppt,d_doubleppt,d_consttemppptdoubleppt)
+d_orig = rbind(d_base,d_z04,d_z07,d_z11,d_z14,d_z29)
 
 d_orig$x = st_coordinates(d_orig)[,1]
 d_orig$y = st_coordinates(d_orig)[,2]
 
 ## Compute differences between cc levels
+rescale_01 = function(x) {
+  return(rescale(x,to=c(0,1)))
+}
+
 
 d = d_orig %>%
   rename(dob_aet100 = AET.Dobr.cc100,
          dob_aet025 = AET.Dobr.cc025,
          dob_cwd100 = Deficit.Dobr.cc100,
          dob_cwd025 = Deficit.Dobr.cc025,
-         wil_aet100 = AET.PT.STD.Wil150mm,
-         wil_aet025 = AET.PT.cc025.Wil150mm,
-         wil_cwd100 = Deficit.PT.STD.Wil150mm,
-         wil_cwd025 = Deficit.PT.cc025.Wil150mm) %>%
+         # wil_aet100 = AET.PT.STD.Wil150mm,
+         # wil_aet025 = AET.PT.cc025.Wil150mm,
+         # wil_cwd100 = Deficit.PT.STD.Wil150mm,
+         # wil_cwd025 = Deficit.PT.cc025.Wil150mm) %>%
+  ) %>%
+  mutate(across(contains("_cwd"), ~ifelse(.<0.1,0,.))) %>%
+  group_by(scenario) %>%
   # rescale AET and CWD (and solar exposure) so that they are stretched from 0 to 1
-  mutate_at(vars(starts_with("dob_"), starts_with("wil_")), funs(scaled = scale)) %>%
+  mutate_at(vars(starts_with("dob_")), funs(scaled = rescale_01)) %>% #, starts_with("wil_")
+  ungroup() %>%
   mutate(rad.03_scaled=rescale(rad.03, to=c(0,1))) %>%
   mutate(diff_dob_aet = dob_aet100_scaled - dob_aet025_scaled,
          diff_dob_cwd = dob_cwd100_scaled - dob_cwd025_scaled,
-         diff_wil_aet = wil_aet100_scaled - wil_aet025_scaled,
-         diff_wil_cwd = wil_cwd100_scaled - wil_cwd025_scaled) %>%
-  # remove model cells that didn't run
-  filter(wil_aet100 > -1 & wil_aet025 > -1)
+         # diff_wil_aet = wil_aet100_scaled - wil_aet025_scaled,
+         # diff_wil_cwd = wil_cwd100_scaled - wil_cwd025_scaled) %>%
+  ) #%>%
+  # # remove model cells that didn't run
+  # filter(wil_aet100 > -1 & wil_aet025 > -1)
 
 
 
@@ -64,7 +70,6 @@ d = d_orig %>%
 
 
 ### Make a 6-panel plot of AET and CWD for each method (and each scenario)
-
 
 
 mapfun <- function(d,column,title,scale.limits=NULL, colorscale, colorscale_dir) {
@@ -118,25 +123,33 @@ for(scen in scenarios) {
   grid.arrange(b,f,a,e,c,g,ncol=2)
   dev.off()
   
-  # Wilmott model plots
-  a <- ggplotGrob(mapfun(d_plot,column = "wil_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
-  b <- ggplotGrob(mapfun(d_plot,column = "wil_aet100", colorscale = "viridis", colorscale_dir = -1, title = "a) AET (PET coefficient = 1.00)"))
-  c <- ggplotGrob(mapfun(d_plot,column = "diff_wil_aet", colorscale = "magma", colorscale_dir = 1, title = "e) AET difference"))
-  
-  e <- ggplotGrob(mapfun(d_plot,column = "wil_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "d) CWD (PET coefficient = 0.25)"))
-  f <- ggplotGrob(mapfun(d_plot,column = "wil_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "b) CWD (PET coefficient = 1.00)"))
-  g <- ggplotGrob(mapfun(d_plot,column = "diff_wil_cwd", colorscale = "magma", colorscale_dir = 1, title = "f) CWD difference"))
-  
-  png(paste0("figures/map_wb/wil_",scen,".png"), width = 3300,height = 2000, res=250)
-  grid.arrange(b,f,a,e,c,g,ncol=2)
-  dev.off()
+  # # Wilmott model plots
+  # a <- ggplotGrob(mapfun(d_plot,column = "wil_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
+  # b <- ggplotGrob(mapfun(d_plot,column = "wil_aet100", colorscale = "viridis", colorscale_dir = -1, title = "a) AET (PET coefficient = 1.00)"))
+  # c <- ggplotGrob(mapfun(d_plot,column = "diff_wil_aet", colorscale = "magma", colorscale_dir = 1, title = "e) AET difference"))
+  # 
+  # e <- ggplotGrob(mapfun(d_plot,column = "wil_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "d) CWD (PET coefficient = 0.25)"))
+  # f <- ggplotGrob(mapfun(d_plot,column = "wil_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "b) CWD (PET coefficient = 1.00)"))
+  # g <- ggplotGrob(mapfun(d_plot,column = "diff_wil_cwd", colorscale = "magma", colorscale_dir = 1, title = "f) CWD difference"))
+  # 
+  # png(paste0("figures/map_wb/wil_",scen,".png"), width = 3300,height = 2000, res=250)
+  # grid.arrange(b,f,a,e,c,g,ncol=2)
+  # dev.off()
 }
 
 
 
+### Manual exploration
+## In Z04, AET 1.00, how correlated with precip
+d_foc = d %>%
+  filter(scenario == "z04")
 
+plot(d_foc$dob_aet100, d_foc$ppt.04)
 
-
+## In z11, why is relative difference not capturing real difference?
+d_foc = d %>%
+  filter(scenario == "z11") %>%
+  select(starts_with("dob_cwd"))
 
 
 
@@ -206,27 +219,24 @@ prep_plot_scenario = function(d,scen) {
 d_plot = prep_plot_scenario(d,scen="base")
 a <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Base"))
 
-d_plot = prep_plot_scenario(d,scen="doubleppt")
-b <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "2x ppt"))
+d_plot = prep_plot_scenario(d,scen="z04")
+b <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Zone 4"))
 
-d_plot = prep_plot_scenario(d,scen="constppt")
-c <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Flat ppt"))
+d_plot = prep_plot_scenario(d,scen="z07")
+c <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Zone 7"))
 
-d_plot = prep_plot_scenario(d,scen="consttemp")
-e <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Flat temp"))
+d_plot = prep_plot_scenario(d,scen="z11")
+e <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Zone 11"))
 
-d_plot = prep_plot_scenario(d,scen="consttempppt")
-f <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Flat temp, flat ppt"))
+d_plot = prep_plot_scenario(d,scen="z14")
+f <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Zone 14"))
 
-d_plot = prep_plot_scenario(d,scen="consttemppptdoubleppt")
-g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Flat temp, 2x flat ppt"))
-
-d_plot = prep_plot_scenario(d,scen="consttemppptHotdry")
-h <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Flat temp, flat ppt, Temp+10deg, Ppt/2"))
+d_plot = prep_plot_scenario(d,scen="z29")
+g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Zone 29"))
 
 
-png(paste0("figures/heatmap_diff/dob_all.png"), width = 1800,height = 5000, res=250)
-grid.arrange(a,b,c,e,f,g,h,ncol=1)
+png(paste0("figures/heatmap_diff/dob_all.png"), width = 1600,height = 5000, res=250)
+grid.arrange(a,b,c,e,f,g,ncol=1)
 dev.off()
 
 ### Make a base Dobrowski and Wilmott figures
@@ -234,16 +244,16 @@ dev.off()
 d_plot = prep_plot_scenario(d,scen="base")
 g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = ""))
 
-png(paste0("figures/heatmap_diff/dob_base.png"), width = 1800,height = 1000, res=250)
+png(paste0("figures/heatmap_diff/dob_base.png"), width = 2000,height = 1000, res=250)
 plot(g)
 dev.off()
 
-
-d_plot = prep_plot_scenario(d,scen="base")
-g <- ggplotGrob(heatmapfun(d_plot,c("diff_wil_aet","diff_wil_cwd"), scenario = ""))
-
-png(paste0("figures/heatmap_diff/wil_base.png"), width = 1800,height = 1000, res=250)
-plot(g)
-dev.off()
+# 
+# d_plot = prep_plot_scenario(d,scen="base")
+# g <- ggplotGrob(heatmapfun(d_plot,c("diff_wil_aet","diff_wil_cwd"), scenario = ""))
+# 
+# png(paste0("figures/heatmap_diff/wil_base.png"), width = 1800,height = 1000, res=250)
+# plot(g)
+# dev.off()
 
 
