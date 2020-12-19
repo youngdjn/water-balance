@@ -99,17 +99,17 @@ d = d %>%
 ### remove vals we don't need, standardize others
 d = d %>%
   dplyr::select(rad.03,ID,starts_with("AET"),starts_with("Deficit"),cv,training,tuol_overlap,tmean_annual,ppt_annual, x, y) %>%
-  rename(aet_wil100 = AET.PT.STD.Wil150mm,
-         aet_wil025 = AET.PT.cc025.Wil150mm,
+  rename(#aet_wil100 = AET.PT.STD.Wil150mm,
+         #aet_wil025 = AET.PT.cc025.Wil150mm,
          aet_dob100 = AET.Dobr.cc100,
          aet_dob025 = AET.Dobr.cc025,
-         cwd_wil100 = Deficit.PT.STD.Wil150mm,
-         cwd_wil025 = Deficit.PT.cc025.Wil150mm,
+         #cwd_wil100 = Deficit.PT.STD.Wil150mm,
+         #cwd_wil025 = Deficit.PT.cc025.Wil150mm,
          cwd_dob100 = Deficit.Dobr.cc100,
          cwd_dob025 = Deficit.Dobr.cc025,
          aet_tempppt = ppt_annual,
          cwd_tempppt = tmean_annual) %>%
-  dplyr::select(-rad.03) %>%
+  #dplyr::select(-rad.03) %>%
   mutate(ID = 1:nrow(d))
 
 
@@ -133,21 +133,24 @@ d_train <- d[!is.na(d$training),]
 #### Just fit a few veg types
 m_dob025_mhw <- gam(mhw ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
 m_dob100_mhw <- gam(mhw ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
-m_wil100_mhw <- gam(mhw ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
-m_wil025_mhw <- gam(mhw ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
+# m_wil100_mhw <- gam(mhw ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
+# m_wil025_mhw <- gam(mhw ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
 m_tpp_mhw = gam(mhw ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
+m_tppr_mhw = gam(mhw ~ te(aet_tempppt,cwd_tempppt,rad.03, k=3), data=d_train, family="binomial")
 
 m_dob025_mch <- gam(mch ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
 m_dob100_mch <- gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
-m_wil100_mch <- gam(mch ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
-m_wil025_mch <- gam(mch ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
+# m_wil100_mch <- gam(mch ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
+# m_wil025_mch <- gam(mch ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
 m_tpp_mch = gam(mch ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
+m_tppr_mch = gam(mch ~ te(aet_tempppt,cwd_tempppt,rad.03, k=3), data=d_train, family="binomial")
 
 m_dob025_smc <- gam(smc ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
 m_dob100_smc <- gam(smc ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
-m_wil100_smc <- gam(smc ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
-m_wil025_smc <- gam(smc ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
+# m_wil100_smc <- gam(smc ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
+# m_wil025_smc <- gam(smc ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
 m_tpp_smc = gam(smc ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
+m_tppr_smc = gam(smc ~ te(aet_tempppt,cwd_tempppt,rad.03, k=3), data=d_train, family="binomial")
 
 summary(m_dob025_mhw)
 summary(m_dob100_mhw)
@@ -185,21 +188,24 @@ auc(obs, fit)
 ### predict to landscape
 d$p_dob025_mhw = predict(m_dob025_mhw, newdata=d, type="response")
 d$p_dob100_mhw = predict(m_dob100_mhw, newdata=d, type = "response")
-d$p_wil025_mhw = predict(m_wil025_mhw, newdata=d, type="response")
-d$p_wil100_mhw = predict(m_wil100_mhw, newdata=d, type = "response")
+# d$p_wil025_mhw = predict(m_wil025_mhw, newdata=d, type="response")
+# d$p_wil100_mhw = predict(m_wil100_mhw, newdata=d, type = "response")
 d$p_tempppt_mhw = predict(m_tpp_mhw, newdata=d, type = "response")
+d$p_temppptr_mhw = predict(m_tppr_mhw, newdata=d, type = "response")
 
 d$p_dob025_mch = predict(m_dob025_mch, newdata=d, type="response")
 d$p_dob100_mch = predict(m_dob100_mch, newdata=d, type = "response")
-d$p_wil025_mch = predict(m_wil025_mch, newdata=d, type="response")
-d$p_wil100_mch = predict(m_wil100_mch, newdata=d, type = "response")
+# d$p_wil025_mch = predict(m_wil025_mch, newdata=d, type="response")
+# d$p_wil100_mch = predict(m_wil100_mch, newdata=d, type = "response")
 d$p_tempppt_mch = predict(m_tpp_mch, newdata=d, type = "response")
+d$p_temppptr_mch = predict(m_tppr_mch, newdata=d, type = "response")
 
 d$p_dob025_smc = predict(m_dob025_smc, newdata=d, type="response")
 d$p_dob100_smc = predict(m_dob100_smc, newdata=d, type = "response")
-d$p_wil025_smc = predict(m_wil025_smc, newdata=d, type="response")
-d$p_wil100_smc = predict(m_wil100_smc, newdata=d, type = "response")
+# d$p_wil025_smc = predict(m_wil025_smc, newdata=d, type="response")
+# d$p_wil100_smc = predict(m_wil100_smc, newdata=d, type = "response")
 d$p_tempppt_smc = predict(m_tpp_smc, newdata=d, type = "response")
+d$p_temppptr_smc = predict(m_tppr_smc, newdata=d, type = "response")
 
 ### For each veg type, calc a predicted pres/ab
 
@@ -208,29 +214,36 @@ mhw_prop = sum(d$mhw,na.rm=TRUE)/sum(!is.na(d$mhw))
 # what predicted prob would give us that proportion of pixels?
 mhw_thresh_dob025 = quantile(d$p_dob025_mhw,1-mhw_prop)
 mhw_thresh_dob100 = quantile(d$p_dob100_mhw,1-mhw_prop)
-mhw_thresh_wil025 = quantile(d$p_wil025_mhw,1-mhw_prop)
-mhw_thresh_wil100 = quantile(d$p_wil100_mhw,1-mhw_prop)
+# mhw_thresh_wil025 = quantile(d$p_wil025_mhw,1-mhw_prop)
+# mhw_thresh_wil100 = quantile(d$p_wil100_mhw,1-mhw_prop)
 mhw_thresh_tempppt = quantile(d$p_tempppt_mhw,1-mhw_prop)
+mhw_thresh_temppptr = quantile(d$p_temppptr_mhw,1-mhw_prop)
 
 # what prop of pixels are smc?
 smc_prop = sum(d$smc,na.rm=TRUE)/sum(!is.na(d$smc))
 # what predicted prob would give us that proportion of pixels?
 smc_thresh_dob025 = quantile(d$p_dob025_smc,1-smc_prop)
 smc_thresh_dob100 = quantile(d$p_dob100_smc,1-smc_prop)
-smc_thresh_wil025 = quantile(d$p_wil025_smc,1-smc_prop)
-smc_thresh_wil100 = quantile(d$p_wil100_smc,1-smc_prop)
+# smc_thresh_wil025 = quantile(d$p_wil025_smc,1-smc_prop)
+# smc_thresh_wil100 = quantile(d$p_wil100_smc,1-smc_prop)
 smc_thresh_tempppt = quantile(d$p_tempppt_smc,1-smc_prop)
+smc_thresh_temppptr = quantile(d$p_temppptr_smc,1-smc_prop)
 
 # what prop of pixels are mch?
 mch_prop = sum(d$mch,na.rm=TRUE)/sum(!is.na(d$mch))
 # what predicted prob would give us that proportion of pixels?
 mch_thresh_dob025 = quantile(d$p_dob025_mch,1-mch_prop)
 mch_thresh_dob100 = quantile(d$p_dob100_mch,1-mch_prop)
-mch_thresh_wil025 = quantile(d$p_wil025_mch,1-mch_prop)
-mch_thresh_wil100 = quantile(d$p_wil100_mch,1-mch_prop)
+# mch_thresh_wil025 = quantile(d$p_wil025_mch,1-mch_prop)
+# mch_thresh_wil100 = quantile(d$p_wil100_mch,1-mch_prop)
 mch_thresh_tempppt = quantile(d$p_tempppt_mch,1-mch_prop)
+mch_thresh_temppptr = quantile(d$p_temppptr_mch,1-mch_prop)
 
 
+## The thresholds range between 21 and 33, so try 15, 25, 35 as manual overrides for a sensitivity analysis
+## Optionally manually override the thresholds for a threshold sensitivity analysis
+# mhw_thresh_dob025 = mhw_thresh_dob100 = mhw_thresh_tempppt = mhw_thresh_temppptr = smc_thresh_dob025 = smc_thresh_dob100 = smc_thresh_tempppt =
+#   smc_thresh_temppptr = mch_thresh_dob025 = mch_thresh_dob100 = mch_thresh_tempppt = mch_thresh_temppptr = .3
 
 
 
@@ -242,22 +255,25 @@ d = d %>%
   mutate(p_dob100_mch_pres = p_dob100_mch > mch_thresh_dob100) %>%
   mutate(p_dob025_smc_pres = p_dob025_smc > smc_thresh_dob025) %>%
   mutate(p_dob100_smc_pres = p_dob100_smc > smc_thresh_dob100) %>%
-  mutate(p_wil025_mhw_pres = p_wil025_mhw > mhw_thresh_wil025) %>%
-  mutate(p_wil100_mhw_pres = p_wil100_mhw > mhw_thresh_wil100) %>%
-  mutate(p_wil025_mch_pres = p_wil025_mch > mch_thresh_wil025) %>%
-  mutate(p_wil100_mch_pres = p_wil100_mch > mch_thresh_wil100) %>%
-  mutate(p_wil025_smc_pres = p_wil025_smc > smc_thresh_wil025) %>%
-  mutate(p_wil100_smc_pres = p_wil100_smc > smc_thresh_wil100) %>%
+  # mutate(p_wil025_mhw_pres = p_wil025_mhw > mhw_thresh_wil025) %>%
+  # mutate(p_wil100_mhw_pres = p_wil100_mhw > mhw_thresh_wil100) %>%
+  # mutate(p_wil025_mch_pres = p_wil025_mch > mch_thresh_wil025) %>%
+  # mutate(p_wil100_mch_pres = p_wil100_mch > mch_thresh_wil100) %>%
+  # mutate(p_wil025_smc_pres = p_wil025_smc > smc_thresh_wil025) %>%
+  # mutate(p_wil100_smc_pres = p_wil100_smc > smc_thresh_wil100) %>%
   mutate(p_tempppt_smc_pres = p_tempppt_smc > smc_thresh_tempppt) %>%
   mutate(p_tempppt_mhw_pres = p_tempppt_mhw > mhw_thresh_tempppt) %>%
-  mutate(p_tempppt_mch_pres = p_tempppt_mch > mch_thresh_tempppt)
+  mutate(p_tempppt_mch_pres = p_tempppt_mch > mch_thresh_tempppt) %>%
+  mutate(p_temppptr_smc_pres = p_temppptr_smc > smc_thresh_temppptr) %>%
+  mutate(p_temppptr_mhw_pres = p_temppptr_mhw > mhw_thresh_temppptr) %>%
+  mutate(p_temppptr_mch_pres = p_temppptr_mch > mch_thresh_temppptr)
 
 
 
 
 
 
-#### Plotting ####
+#### Plotting of the climate space sampled ####
 
 ggplot(d) +
   geom_tile(aes(fill=p_dob100_mhw_pres, x=x,y=y)) +
@@ -289,9 +305,9 @@ p = ggplot(d_plot, aes(x = aet_dob100, y = cwd_dob100, color=training_bool)) +
   theme_classic(16) +
   guides(colour = guide_legend(override.aes = list(size=2)))
   
-png("figures/climate_space_sampled.png", width = 1300, height = 1000, res = 200)
-p
-dev.off()
+# png("figures/climate_space_sampled.png", width = 1300, height = 1000, res = 200)
+# p
+# dev.off()
 
 
 
@@ -304,6 +320,9 @@ d_eval = d
 st_geometry(d_eval) = NULL
 
 d_eval_long = d_eval %>%
+  mutate(aet_temppptr = aet_tempppt,
+         cwd_temppptr = cwd_tempppt) %>%
+  select(-rad.03) %>%
   pivot_longer(cols=c(starts_with("aet_"),starts_with("cwd_"), starts_with("p_"), )) %>%
   # get the second part of the name (it's the climate method)
   mutate(clim_metric = str_split(name,"_") %>% map(2)) %>%
@@ -326,7 +345,7 @@ d_eval_long = d_eval %>%
 
 ## Put the predictions resulting from different CC assumptions side by side
 d_eval_presab = d_eval_long %>%
-  filter(clim_metric != "tempppt") %>%
+  filter(!(clim_metric %in% c("tempppt","temppptr"))) %>%
   mutate(cc = str_sub(clim_metric,-3,-1)) %>%
   mutate(clim_metric = str_sub(clim_metric,1,3)) %>%
   select(-aet,-cwd) %>%
@@ -346,16 +365,23 @@ d_eval_presab_ppt = d_eval_long %>%
   select(ID,vegtype,presab_ppt = presab) %>%
   mutate(vegtype = as.character(vegtype))
 
+d_eval_presab_pptr = d_eval_long %>%
+  filter(clim_metric == "temppptr") %>%
+  select(ID,vegtype,presab_pptr = presab) %>%
+  mutate(vegtype = as.character(vegtype))
+
 
 
 library(pROC)
 d_eval_presab_summ = d_eval_presab %>%
   mutate(vegtype = as.character(vegtype)) %>%
   left_join(d_eval_presab_ppt,by=c("ID","vegtype")) %>%
+  left_join(d_eval_presab_pptr,by=c("ID","vegtype")) %>%
   mutate_at(vars(obs,presab_025,presab_100,presab_ppt),as.logical) %>%
   group_by(clim_metric,vegtype) %>%
   # what fraction of the cells in that had presence in either were the same in both?
   summarize(prop_same = sum(presab_summ == "both")/sum(presab_summ != "neither"),
+            #prop_pred_bigdiff = mean( sum(abs(prob_025-prob_100)[presab_summ != "neither"]>0.1) / sum(presab_summ != "neither") ),
             f_stat = fstat(presab_025,presab_100),
             kappa = kappaval(cbind(presab_025,presab_100)),
             tss = tss(presab_025,presab_100),
@@ -367,20 +393,27 @@ d_eval_presab_summ = d_eval_presab %>%
             auc_025_val = auc(obs[is.na(training)], prob_025[is.na(training)]) %>% as.numeric(),
             tss_ppt_025 = tss(presab_025,presab_ppt),
             tss_ppt_100 = tss(presab_100,presab_ppt),
+            tss_pptr_025 = tss(presab_025,presab_pptr),
+            tss_pptr_100 = tss(presab_100,presab_pptr),
             prop_same_ppt_025 = sum(presab_025 & presab_ppt) / sum(presab_025|presab_ppt),
-            prop_same_ppt_100 = sum(presab_100 & presab_ppt) / sum(presab_100|presab_ppt)) %>%
-  select(clim_metric, vegtype, auc_025_val, auc_100_val, prop_same, tss, tss_ppt_025, tss_ppt_100, prop_same_ppt_025, prop_same_ppt_100) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
+            prop_same_ppt_100 = sum(presab_100 & presab_ppt) / sum(presab_100|presab_ppt),
+            prop_same_pptr_025 = sum(presab_025 & presab_pptr) / sum(presab_025|presab_pptr),
+            prop_same_pptr_100 = sum(presab_100 & presab_pptr) / sum(presab_100|presab_pptr)) %>%
+  select(clim_metric, vegtype, auc_025_val, auc_100_val, prop_same, tss, tss_ppt_025, tss_ppt_100, tss_pptr_025, tss_pptr_100, prop_same_ppt_025, prop_same_ppt_100, prop_same_pptr_025, prop_same_pptr_100) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
 
 
 ## get AUCs for ppt models
 d_eval_ppt = d_eval_long %>%
-  filter(clim_metric == "tempppt") %>%
+  filter(clim_metric %in% c("tempppt","temppptr")) %>%
   mutate(vegtype = as.character(vegtype)) %>%
   mutate_at(vars(obs,presab),as.logical) %>%
-  group_by(vegtype) %>%
+  group_by(clim_metric,vegtype) %>%
   # what fraction of the cells in that had presence in either were the same in both?
   summarize(auc_ppt = auc(obs[is.na(training)], prob[is.na(training)]) %>% as.numeric) %>%
-  mutate(clim_metric = "ppt")
+  mutate(clim_metric = str_sub(clim_metric,-3,-1)) %>%
+  pivot_wider(names_from = clim_metric, values_from = auc_ppt) %>%
+  rename(auc_ppt = "ppt",
+         auc_ptr = "ptr")
 
 
 ## Table for main ms (dobrowski and ppt)
@@ -389,7 +422,7 @@ veg_fits_main = d_eval_presab_summ %>%
   ungroup() %>%
   filter(clim_metric == "dob") %>%
   select(-clim_metric) %>%
-  left_join(d_eval_ppt %>% select(-clim_metric)) %>%
+  left_join(d_eval_ppt) %>%
   mutate_if(is.numeric,round,digits=2) #%>%
   # t() %>%
   # as.data.frame() %>%
@@ -398,15 +431,15 @@ veg_fits_main = d_eval_presab_summ %>%
 write_csv(veg_fits_main, "tables/veg_fits_main.csv")
 
 
-## Table for supplement (willmott)
-
-veg_fits_supp = d_eval_presab_summ %>%
-  ungroup() %>%
-  filter(clim_metric == "wil") %>%
-  select(-clim_metric) %>%
-  mutate_if(is.numeric,round,digits=2)
-
-write_csv(veg_fits_supp, "tables/veg_fits_supp.csv")
+# ## Table for supplement (willmott)
+# 
+# veg_fits_supp = d_eval_presab_summ %>%
+#   ungroup() %>%
+#   filter(clim_metric == "wil") %>%
+#   select(-clim_metric) %>%
+#   mutate_if(is.numeric,round,digits=2)
+# 
+# write_csv(veg_fits_supp, "tables/veg_fits_supp.csv")
 
 
 
@@ -509,6 +542,117 @@ grid.arrange(p1,p2,p3,p4,
              widths = c(0.03,1,0.375),
              layout_matrix = layout)
 dev.off()
+
+
+
+
+
+
+#### Probability-based maps
+
+
+### General data prep
+
+d_plot_pre = d_eval_presab %>%
+  mutate(presab_summ = recode(presab_summ, high = "1.00 only",
+                              low = "0.25 only",
+                              both = "Both",
+                              neither = "Neither")) %>%
+  mutate(presab_summ = factor(presab_summ, levels=c("0.25 only","Both","1.00 only","Neither"))) %>%
+  filter(clim_metric == "dob")
+
+## pull in precip
+d_ppt = d_eval_long %>%
+  filter(clim_metric %in% c("tempppt","temppptr")) %>%
+  rename(cc_assumption = "clim_metric",
+         prob_presence = "prob") %>%
+  mutate(cc_assumption = as.character(cc_assumption))
+
+d_plot_pre = d_plot_pre %>%
+  pivot_longer(cols=c(prob_100,prob_025), names_to = "cc_assumption", values_to = "prob_presence" ) %>%
+  bind_rows(d_ppt) %>%
+  mutate(cc_assumption = recode(cc_assumption, "prob_025" = "Water balance: PET coefficient = 0.25",
+                                "prob_100" = "Water balance: PET coefficient = 1.00",
+                                "tempppt" = "Temperature and precipitation",
+                                "temppptr" = "Temperature, precip., solar rad., and interactions")) %>%
+  mutate(cc_assumption = factor(cc_assumption,levels = c("Water balance: PET coefficient = 0.25", "Water balance: PET coefficient = 1.00", "Temperature and precipitation", "Temperature, precip., solar rad., and interactions")))
+
+
+## Plot for montane chaparral
+d_plot = d_plot_pre %>%
+  filter(vegtype == "mch")
+
+p_mch <- ggplot(d_plot) +
+  geom_raster(aes(x=x,y=y,fill=prob_presence)) +
+  coord_equal() +
+  theme_map() +
+  theme(legend.position="right") +
+  #theme(legend.title=element_blank()) +
+  theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+  theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+  theme(panel.spacing=unit(1,"lines")) +
+  theme(panel.border=element_rect(fill=NA)) +
+  theme(legend.text=element_text(size=8)) +
+  theme(plot.title=element_text(size=16,hjust = 0.5)) +
+  labs(title="Montane chaparral") +
+  #theme(plot.title=element_text(hjust=0.5,size=12)) +
+  #scale_x_continuous(limit=c(-55000,60000)) +
+  #scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted") +
+  scale_fill_viridis(limits=c(0.15,0.67), name="Prob.\n presence") +
+  facet_wrap(~cc_assumption)
+
+
+## Plot for montane hardwoods
+d_plot = d_plot_pre %>%
+  filter(vegtype == "mhw")
+
+p_mhw <- ggplot(d_plot) +
+  geom_raster(aes(x=x,y=y,fill=prob_presence)) +
+  coord_equal() +
+  theme_map() +
+  theme(legend.position="right") +
+  #theme(legend.title=element_blank()) +
+  theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+  theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+  theme(panel.spacing=unit(1,"lines")) +
+  theme(panel.border=element_rect(fill=NA)) +
+  theme(legend.text=element_text(size=8)) +
+  #theme(plot.title = element_text(size=9)) +
+  labs(title="Montane hardwoods") +
+  theme(plot.title=element_text(size=16,hjust = 0.5)) +
+  #theme(plot.title=element_text(hjust=0.5,size=12)) +
+  #scale_x_continuous(limit=c(-55000,60000)) +
+  #scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted") +
+  scale_fill_viridis(limits=c(0.15,0.99), name="Prob.\n presence") +
+  facet_wrap(~cc_assumption)
+
+
+## Plot for sierra mixed-conifer
+d_plot = d_plot_pre %>%
+  filter(vegtype == "smc")
+
+p_smc <- ggplot(d_plot) +
+  geom_raster(aes(x=x,y=y,fill=prob_presence)) +
+  coord_equal() +
+  theme_map() +
+  theme(legend.position="right") +
+  #theme(legend.title=element_blank()) +
+  theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+  theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+  theme(panel.spacing=unit(1,"lines")) +
+  theme(panel.border=element_rect(fill=NA)) +
+  theme(legend.text=element_text(size=8)) +
+  theme(plot.title=element_text(size=16,hjust = 0.5)) +
+  labs(title="Sierra mixed-conifer") +
+  #theme(plot.title=element_text(hjust=0.5,size=12)) +
+  #scale_x_continuous(limit=c(-55000,60000)) +
+  #scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted") +
+  scale_fill_viridis(limits=c(0.15,0.93), name="Prob.\n presence") +
+  facet_wrap(~cc_assumption)
+
+
+
+
 
 
 

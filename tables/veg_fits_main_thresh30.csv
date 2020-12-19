@@ -1,0 +1,4 @@
+vegtype,auc_025_val,auc_100_val,prop_same,tss,tss_ppt_025,tss_ppt_100,tss_pptr_025,tss_pptr_100,prop_same_ppt_025,prop_same_ppt_100,prop_same_pptr_025,prop_same_pptr_100,auc_ppt,auc_ptr
+mch,0.84,0.81,0.27,0.29,NaN,NaN,0.17,0.39,0,0,0.16,0.3,0.8,0.79
+mhw,0.7,0.73,0.36,0.55,0.26,0.13,0.37,0.49,0.3,0.18,0.32,0.46,0.75,0.82
+smc,0.8,0.77,0.35,0.56,-0.01,-0,0.05,-0.02,0.03,0.03,0.08,0.02,0.81,0.82
