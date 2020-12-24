@@ -38,6 +38,10 @@ rescale_01 = function(x) {
   return(rescale(x,to=c(0,1)))
 }
 
+rescale_55 = function(x) {
+  return(rescale(x,to=c(-0.5,.5)))
+}
+
 
 d = d_orig %>%
   rename(dob_aet100 = AET.Dobr.cc100,
@@ -60,11 +64,17 @@ d = d_orig %>%
          # diff_wil_aet = wil_aet100_scaled - wil_aet025_scaled,
          # diff_wil_cwd = wil_cwd100_scaled - wil_cwd025_scaled) %>%
   ) #%>%
-  # # remove model cells that didn't run
-  # filter(wil_aet100 > -1 & wil_aet025 > -1)
+# # remove model cells that didn't run
+# filter(wil_aet100 > -1 & wil_aet025 > -1)
 
 
 
+### Within each group, scale the AET and CWD differences so they span 0 to 1
+
+d = d %>%
+  group_by(scenario) %>%
+  mutate(diff_dob_aet = rescale_55(diff_dob_aet),
+         diff_dob_cwd = rescale_55(diff_dob_cwd))
 
 
 
@@ -96,7 +106,7 @@ mapfun <- function(d,column,title,scale.limits=NULL, colorscale, colorscale_dir)
     labs(title=title) +
     theme(plot.title=element_text(size=14)) +
     scale_fill_viridis(na.value="white",option=colorscale, direction = colorscale_dir,limits=scale.limits, begin = begin, end = end) +
-    scale_x_continuous(limit=c(-55000,60000))
+    scale_x_continuous(limit=c(-56000,59000))
   
   return(p)
   
@@ -105,19 +115,19 @@ mapfun <- function(d,column,title,scale.limits=NULL, colorscale, colorscale_dir)
 scenarios = unique(d$scenario)
 
 for(scen in scenarios) {
-
+  
   d_plot = d %>%
     filter(scenario == scen)
-    # remove model cells that didn't run
+  # remove model cells that didn't run
   
   # Dobrowski model plots
   a <- ggplotGrob(mapfun(d_plot,column = "dob_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
   b <- ggplotGrob(mapfun(d_plot,column = "dob_aet100", colorscale = "viridis", colorscale_dir = -1, title = "a) AET (PET coefficient = 1.00)"))
-  c <- ggplotGrob(mapfun(d_plot,column = "diff_dob_aet", colorscale = "magma", colorscale_dir = 1, title = "e) AET difference"))
+  c <- ggplotGrob(mapfun(d_plot,column = "diff_dob_aet", colorscale = "magma", colorscale_dir = 1, title = "e) AET relative difference"))
   
   e <- ggplotGrob(mapfun(d_plot,column = "dob_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "d) CWD (PET coefficient = 0.25)"))
   f <- ggplotGrob(mapfun(d_plot,column = "dob_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "b) CWD (PET coefficient = 1.00)"))
-  g <- ggplotGrob(mapfun(d_plot,column = "diff_dob_cwd", colorscale = "magma", colorscale_dir = 1, title = "f) CWD difference"))
+  g <- ggplotGrob(mapfun(d_plot,column = "diff_dob_cwd", colorscale = "magma", colorscale_dir = 1, title = "f) CWD relative difference"))
   
   png(paste0("figures/map_wb/dob_",scen,".png"), width = 3300,height = 2000, res=250)
   grid.arrange(b,f,a,e,c,g,ncol=2)
@@ -171,13 +181,13 @@ heatmapfun <- function(d,columns,scale.limits=NULL, scenario) {
   
   ggplot(d,aes(x=elev_cat,y=rad_cat,fill=value)) +
     geom_tile() +
-    scale_fill_viridis(option="magma", begin = 0.1, end = 0.9) +
+    scale_fill_viridis(option="magma", begin = 0.1, end = 0.9, name="Relative\ndifference") +
     labs(x = "Elevation (m)",
          y = "Relative solar exposure") +
     theme_classic(16) +
-    theme(legend.title=element_blank()) +
+    #theme(legend.title=element_blank()) +
     facet_wrap("metric") +
-    theme(strip.text=element_text(size=12),strip.background=element_blank())
+    theme(strip.text=element_text(size=16),strip.background=element_blank(), legend.title=element_text(size=14))
 }
 
 ## bin it myself and require a minimum number of pixels per tile
@@ -190,7 +200,7 @@ rad_mids = rad_breaks[1:(length(rad_breaks)-1)] + 0.5*(rad_breaks[2]-rad_breaks[
 
 
 prep_plot_scenario = function(d,scen) {
-
+  
   d_plot = d %>%
     filter(scenario == scen)
   
@@ -235,7 +245,7 @@ d_plot = prep_plot_scenario(d,scen="z29")
 g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Zone 29"))
 
 
-png(paste0("figures/heatmap_diff/dob_all.png"), width = 1600,height = 5000, res=250)
+png(paste0("figures/heatmap_diff/dob_all.png"), width = 1700,height = 5000, res=250)
 grid.arrange(a,b,c,e,f,g,ncol=1)
 dev.off()
 
@@ -244,7 +254,7 @@ dev.off()
 d_plot = prep_plot_scenario(d,scen="base")
 g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = ""))
 
-png(paste0("figures/heatmap_diff/dob_base.png"), width = 2000,height = 1000, res=250)
+png(paste0("figures/heatmap_diff/dob_base.png"), width = 2000,height = 1000, res=320)
 plot(g)
 dev.off()
 
