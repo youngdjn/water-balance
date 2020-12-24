@@ -131,12 +131,12 @@ d_train <- d[!is.na(d$training),]
 
 
 #### Just fit a few veg types
-m_dob025_mhw <- gam(mhw ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
-m_dob100_mhw <- gam(mhw ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
+m_dob025_mhw <- gam(mhw ~ s((aet_dob025), k=3) + s((cwd_dob025), k=3), data=d_train, family="binomial")
+m_dob100_mhw <- gam(mhw ~ s((aet_dob100), k=3) + s((cwd_dob100), k=3), data=d_train, family="binomial")
 # m_wil100_mhw <- gam(mhw ~ s(aet_wil100, k=3) + s(cwd_wil100, k=3), data=d_train, family="binomial")
 # m_wil025_mhw <- gam(mhw ~ s(aet_wil025, k=3) + s(cwd_wil025, k=3), data=d_train, family="binomial")
-m_tpp_mhw = gam(mhw ~ s(aet_tempppt, k=3) + s(cwd_tempppt, k=3), data=d_train, family="binomial")
-m_tppr_mhw = gam(mhw ~ te(aet_tempppt,cwd_tempppt,rad.03, k=3), data=d_train, family="binomial")
+m_tpp_mhw = gam(mhw ~ s((aet_tempppt), k=3) + s((cwd_tempppt), k=3), data=d_train, family="binomial")
+m_tppr_mhw = gam(mhw ~ te((aet_tempppt),(cwd_tempppt),scale(rad.03), k=3), data=d_train, family="binomial")
 
 m_dob025_mch <- gam(mch ~ s(aet_dob025, k=3) + s(cwd_dob025, k=3), data=d_train, family="binomial")
 m_dob100_mch <- gam(mch ~ s(aet_dob100, k=3) + s(cwd_dob100, k=3), data=d_train, family="binomial")
@@ -243,7 +243,7 @@ mch_thresh_temppptr = quantile(d$p_temppptr_mch,1-mch_prop)
 ## The thresholds range between 21 and 33, so try 15, 25, 35 as manual overrides for a sensitivity analysis
 ## Optionally manually override the thresholds for a threshold sensitivity analysis
 # mhw_thresh_dob025 = mhw_thresh_dob100 = mhw_thresh_tempppt = mhw_thresh_temppptr = smc_thresh_dob025 = smc_thresh_dob100 = smc_thresh_tempppt =
-#   smc_thresh_temppptr = mch_thresh_dob025 = mch_thresh_dob100 = mch_thresh_tempppt = mch_thresh_temppptr = .3
+#   smc_thresh_temppptr = mch_thresh_dob025 = mch_thresh_dob100 = mch_thresh_tempppt = mch_thresh_temppptr = .30
 
 
 
@@ -384,22 +384,24 @@ d_eval_presab_summ = d_eval_presab %>%
             #prop_pred_bigdiff = mean( sum(abs(prob_025-prob_100)[presab_summ != "neither"]>0.1) / sum(presab_summ != "neither") ),
             f_stat = fstat(presab_025,presab_100),
             kappa = kappaval(cbind(presab_025,presab_100)),
-            tss = tss(presab_025,presab_100),
+            tss = tss(presab_025[is.na(training)],presab_100[is.na(training)]),
             auc_025 = auc(obs,prob_025) %>% as.numeric(),
             auc_100 = auc(obs,prob_100) %>% as.numeric(),
             auc_100_train = auc(obs[!is.na(training)], prob_100[!is.na(training)]) %>% as.numeric(),
             auc_025_train = auc(obs[!is.na(training)], prob_025[!is.na(training)]) %>% as.numeric(),
             auc_100_val = auc(obs[is.na(training)], prob_100[is.na(training)]) %>% as.numeric(),
             auc_025_val = auc(obs[is.na(training)], prob_025[is.na(training)]) %>% as.numeric(),
-            tss_ppt_025 = tss(presab_025,presab_ppt),
-            tss_ppt_100 = tss(presab_100,presab_ppt),
-            tss_pptr_025 = tss(presab_025,presab_pptr),
-            tss_pptr_100 = tss(presab_100,presab_pptr),
+            tss_ppt_025 = tss(presab_025[is.na(training)],presab_ppt[is.na(training)]),
+            tss_ppt_100 = tss(presab_100[is.na(training)],presab_ppt[is.na(training)]),
+            tss_pptr_025 = tss(presab_025[is.na(training)],presab_pptr[is.na(training)]),
+            tss_pptr_100 = tss(presab_100[is.na(training)],presab_pptr[is.na(training)]),
             prop_same_ppt_025 = sum(presab_025 & presab_ppt) / sum(presab_025|presab_ppt),
             prop_same_ppt_100 = sum(presab_100 & presab_ppt) / sum(presab_100|presab_ppt),
             prop_same_pptr_025 = sum(presab_025 & presab_pptr) / sum(presab_025|presab_pptr),
-            prop_same_pptr_100 = sum(presab_100 & presab_pptr) / sum(presab_100|presab_pptr)) %>%
-  select(clim_metric, vegtype, auc_025_val, auc_100_val, prop_same, tss, tss_ppt_025, tss_ppt_100, tss_pptr_025, tss_pptr_100, prop_same_ppt_025, prop_same_ppt_100, prop_same_pptr_025, prop_same_pptr_100) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
+            prop_same_pptr_100 = sum(presab_100 & presab_pptr) / sum(presab_100|presab_pptr),
+            prop_present_100 = sum(presab_summ %in% c("high","both"))/sum(!is.na(presab_summ)),
+            prop_present_obs = sum(obs,na.rm=TRUE)/sum(!is.na(obs))) %>%
+  select(clim_metric, vegtype, auc_025_val, auc_100_val, prop_same, tss, tss_ppt_025, tss_ppt_100, tss_pptr_025, tss_pptr_100, prop_same_ppt_025, prop_same_ppt_100, prop_same_pptr_025, prop_same_pptr_100, prop_present_100, prop_present_obs) # removed the following for simplicity: , auc_025_train, auc_100_train, auc_025_valid, auc_100_valid, f_stat, kappa, 
 
 
 ## get AUCs for ppt models
@@ -589,7 +591,7 @@ p_mch <- ggplot(d_plot) +
   theme(legend.position="right") +
   #theme(legend.title=element_blank()) +
   theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
-  theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+  theme(strip.text=element_text(size=11),strip.background=element_blank()) +
   theme(panel.spacing=unit(1,"lines")) +
   theme(panel.border=element_rect(fill=NA)) +
   theme(legend.text=element_text(size=8)) +
@@ -613,7 +615,7 @@ p_mhw <- ggplot(d_plot) +
   theme(legend.position="right") +
   #theme(legend.title=element_blank()) +
   theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
-  theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+  theme(strip.text=element_text(size=11),strip.background=element_blank()) +
   theme(panel.spacing=unit(1,"lines")) +
   theme(panel.border=element_rect(fill=NA)) +
   theme(legend.text=element_text(size=8)) +
@@ -638,7 +640,7 @@ p_smc <- ggplot(d_plot) +
   theme(legend.position="right") +
   #theme(legend.title=element_blank()) +
   theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
-  theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+  theme(strip.text=element_text(size=11),strip.background=element_blank()) +
   theme(panel.spacing=unit(1,"lines")) +
   theme(panel.border=element_rect(fill=NA)) +
   theme(legend.text=element_text(size=8)) +
@@ -650,7 +652,10 @@ p_smc <- ggplot(d_plot) +
   scale_fill_viridis(limits=c(0.15,0.93), name="Prob.\n presence") +
   facet_wrap(~cc_assumption)
 
-
+png("figures/veg_pred/veg_pred_prob.png",res=150, width = 1200, height = 1500)
+grid.arrange(p_mch, p_mhw, p_smc,
+             ncol = 1)
+dev.off()
 
 
 
