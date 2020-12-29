@@ -64,8 +64,8 @@ d = d_orig %>%
          # diff_wil_aet = wil_aet100_scaled - wil_aet025_scaled,
          # diff_wil_cwd = wil_cwd100_scaled - wil_cwd025_scaled) %>%
   ) #%>%
-# # remove model cells that didn't run
-# filter(wil_aet100 > -1 & wil_aet025 > -1)
+  # # remove model cells that didn't run
+  # filter(wil_aet100 > -1 & wil_aet025 > -1)
 
 
 
@@ -115,10 +115,10 @@ mapfun <- function(d,column,title,scale.limits=NULL, colorscale, colorscale_dir)
 scenarios = unique(d$scenario)
 
 for(scen in scenarios) {
-  
+
   d_plot = d %>%
     filter(scenario == scen)
-  # remove model cells that didn't run
+    # remove model cells that didn't run
   
   # Dobrowski model plots
   a <- ggplotGrob(mapfun(d_plot,column = "dob_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
@@ -200,7 +200,7 @@ rad_mids = rad_breaks[1:(length(rad_breaks)-1)] + 0.5*(rad_breaks[2]-rad_breaks[
 
 
 prep_plot_scenario = function(d,scen) {
-  
+
   d_plot = d %>%
     filter(scenario == scen)
   
