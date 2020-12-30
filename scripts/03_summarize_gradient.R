@@ -76,8 +76,8 @@ d_df_summ = d_df %>%
 d_plot = d_df_summ %>%
   filter(wb_metric %in% c("AET.Dobr.cc025",
                           "AET.Dobr.cc100")) %>%
-  mutate(wb_metric = recode(wb_metric,"AET.Dobr.cc100" = "1","AET.Dobr.cc025" =  "0.25")) %>%
-  mutate(wb_metric = factor(wb_metric,levels=c("1","0.25"))) %>%
+  mutate(wb_metric = recode(wb_metric,"AET.Dobr.cc100" = "1.00","AET.Dobr.cc025" =  "0.25")) %>%
+  mutate(wb_metric = factor(wb_metric,levels=c("1.00","0.25"))) %>%
   mutate(radiation = recode(radiation,"high" = "High","low" =  "Low") %>% as.factor) %>%
   mutate(radiation = factor(radiation,levels=c("High","Low"))) %>%
   mutate(elev = as.numeric(as.character(elev_bins)))
@@ -112,13 +112,13 @@ dev.off()
 #   theme_bw(12) +
 #   labs(x = "Elevation (m)",
 #        y = "Annual CWD (mm)")
-
-png("figures/transect_gradient_CWD.png", width=1000,height=800,res=200)
-p
-dev.off()
-
-ggplot(d_df,aes(x=elev,y=AET.Dobr.cc100, color=aspect_mask)) +
-  geom_point()
+# 
+# png("figures/transect_gradient_CWD.png", width=1000,height=800,res=200)
+# p
+# dev.off()
+# 
+# ggplot(d_df,aes(x=elev,y=AET.Dobr.cc100, color=aspect_mask)) +
+#   geom_point()
 
 
 
