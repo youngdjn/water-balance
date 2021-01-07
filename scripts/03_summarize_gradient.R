@@ -4,12 +4,13 @@ library(raster)
 library(sf)
 library(tidyverse)
 
+# Load base climate scenario data
 d = brick("data/wb_output/rasters/base.grd")
 
 rad = d$rad.03
 elev = d$elev
 
-### Splitting the elevation into 10 bins, getting the N and S extremes for each
+### Splitting the elevation into 10 bins, getting the N and S extremes (25th percentiles) for each
 aspect_masks = list()
 
 for(bin in 0:9) {
@@ -73,6 +74,7 @@ d_df_summ = d_df %>%
 
 ### Make plots ###
 
+# Filter to focal metric and assign nice names for the figure
 d_plot = d_df_summ %>%
   filter(wb_metric %in% c("AET.Dobr.cc025",
                           "AET.Dobr.cc100")) %>%
@@ -93,33 +95,3 @@ p = ggplot(d_plot,aes(x=elev,y=mean,color=wb_metric,linetype=radiation, group=in
 png("figures/transect_gradient.png", width=1000,height=800,res=200)
 p
 dev.off()
-
-
-# ## Repeat for CWD
-# d_plot = d_df_summ %>%
-#   filter(wb_metric %in% c("Deficit.Dobr.cc025",
-#                           "Deficit.Dobr.cc100")) %>%
-#   mutate(wb_metric = recode(wb_metric,"Deficit.Dobr.cc100" = "1","Deficit.Dobr.cc025" =  "0.25")) %>%
-#   mutate(wb_metric = factor(wb_metric,levels=c("1","0.25"))) %>%
-#   mutate(radiation = recode(radiation,"high" = "South","low" =  "North") %>% as.factor) %>%
-#   mutate(radiation = factor(radiation,levels=c("South","North"))) %>%
-#   mutate(elev = as.numeric(as.character(elev_bins)))
-# 
-# p = ggplot(d_plot,aes(x=elev,y=mean,color=wb_metric,linetype=radiation, group=interaction(wb_metric,radiation))) +
-#   geom_line(size=1) +
-#   scale_color_manual(name="PET coefficient", values = c("slateblue","darkorange")) +
-#   scale_linetype_discrete(name="Aspect") +
-#   theme_bw(12) +
-#   labs(x = "Elevation (m)",
-#        y = "Annual CWD (mm)")
-# 
-# png("figures/transect_gradient_CWD.png", width=1000,height=800,res=200)
-# p
-# dev.off()
-# 
-# ggplot(d_df,aes(x=elev,y=AET.Dobr.cc100, color=aspect_mask)) +
-#   geom_point()
-
-
-
-

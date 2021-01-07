@@ -1,7 +1,12 @@
+# Summarize WorldClim temperature and precip in different Koppen climate zones and build stylized climate regimes
+
+
 library(tidyverse)
 library(sf)
 library(raster)
 
+## Assumes the monthly WorldClim climatic normals (5 minute res) are in /home/derek/gis/Climate/worldclim
+## Can be downloaded from: https://www.worldclim.org/data/worldclim21.html
 
 ## load precip
 precip_files = list.files("/home/derek/gis/Climate/worldclim/wc2.1_5m_prec/",pattern="tif",full.names = TRUE)
@@ -15,50 +20,19 @@ tmax_files = list.files("/home/derek/gis/Climate/worldclim/wc2.1_5m_tmax/",patte
 tmax = stack(tmax_files)
 
 
-## mean and sd precip
-ppt_mean = mean(precip)
-# ppt_sd = stackApply(precip,indices=1,fun=sd)
-# ppt_cv = ppt_sd/ppt_mean
-
-# # make a ppt_cv mask to exclude areas with very low precip
-# low = quantile(ppt_mean,0.01)
-# notlow_ppt = ppt_mean > low
-# notlow_ppt[notlow_ppt == 0] = NA
-# ppt_cv = ppt_cv * notlow_ppt
-
-# writeRaster(ppt_mean,"/home/derek/gis/Climate/worldclim/summarized/ppt_mean.tif")
-# writeRaster(ppt_sd,"/home/derek/gis/Climate/worldclim/summarized/ppt_sd.tif")
-
-## mean and sd temp
-tmin_mean = mean(tmin)
-# tmin_meank = mean(tmin+273.15)
-# tmin_sd = stackApply(tmin,indices=1,fun=sd)
-# tmin_sdk = stackApply(tmin+273.15,indices=1,fun=sd)
-# tmin_cv = tmin_sdk/(tmin_mean+273.15)
-
-tmax_mean = mean(tmax)
-# tmax_meank = mean(tmax+273.15)
-# tmax_sd = stackApply(tmax,indices=1,fun=sd)
-# tmax_sdk = stackApply(tmax+273.15,indices=1,fun=sd)
-# tmax_cv = tmax_sdk/(tmax_mean+273.15)
-
-# writeRaster(temp_mean,"/home/derek/gis/Climate/worldclim/summarized/temp_mean.tif")
-# writeRaster(temp_sd,"/home/derek/gis/Climate/worldclim/summarized/temp_sd.tif")
-
-### Stack all
-clim = stack(ppt_mean,tmin_mean,tmax_mean,tmin[[1]],tmin[[7]],tmax[[1]],tmax[[7]],precip[[1]],precip[[7]])
-names(clim) = c("ppt_mean","tmin_mean","tmax_mean","tmin_jan","tmin_jul","tmax_jan","tmax_jul","precip_jan","precip_jul")
 
 
-## workspace saved here
+### Stack temp and precip for jan and july
+clim = stack(tmin[[1]],tmin[[7]],tmax[[1]],tmax[[7]],precip[[1]],precip[[7]])
+names(clim) = c("tmin_jan","tmin_jul","tmax_jan","tmax_jul","precip_jan","precip_jul")
+
 
 #### Intersect with climate classifications ####
 
 ### For each zone get:
-## the average intra-annual SD in precip, temp
-## the average annual precip, temp
+## the average precip, temp for jan and jul
 
-## crop to 33-45 deg lat N and S
+## crop to 30-45 deg lat N and S
 coords = matrix(c(-179,30,
                   -179,45,
                   179,45,
@@ -87,44 +61,11 @@ class_poly = rasterToPolygons(class) %>% as("sf")
 class_poly_n = rasterToPolygons(class_n) %>% as("sf")
 
 
-### Once for whole globe
-
-zone = class_poly[class_poly$layer=="4",] %>% as("sf") %>% st_union
-summ_z4 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
-summ_z4$zone = "4"
-
-zone = class_poly[class_poly$layer=="14",] %>% as("sf") %>% st_union
-summ_z14 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
-summ_z14$zone = "14"
-
-zone = class_poly[class_poly$layer=="7",] %>% as("sf") %>% st_union
-summ_z7 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
-summ_z7$zone = "7"
-
-zone = class_poly[class_poly$layer=="29",] %>% as("sf") %>% st_union
-summ_z29 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
-summ_z29$zone = "29"
-
-zone = class_poly[class_poly$layer=="9",] %>% as("sf") %>% st_union
-summ_z9 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
-summ_z9$zone = "9"
-
-zone = class_poly[class_poly$layer=="18",] %>% as("sf") %>% st_union
-summ_z18 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
-summ_z18$zone = "18"
-
-summ = bind_rows(summ_z4,summ_z7, summ_z14, summ_z29, summ_z9, summ_z18)
-
-
-### Repeat for northern hemisphere only
+### Get mean of clim vars in each focal zone
 
 zone = class_poly[class_poly_n$layer=="4",] %>% as("sf") %>% st_union
 summ_z4 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
 summ_z4$zone = "4N"
-
-# zone = class_poly[class_poly_n$layer=="5",] %>% as("sf") %>% st_union
-# summ_z5 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
-# summ_z5$zone = "5N"
 
 zone = class_poly[class_poly_n$layer=="14",] %>% as("sf") %>% st_union
 summ_z14 = extract(clim,zone %>% as("Spatial"),fun=mean, na.rm=TRUE) %>% as.data.frame
@@ -148,9 +89,9 @@ summ_all = bind_rows(summ,summ_n)
 summ_all
 
 
-#### Functions to make climate ####
+#### Function to make a stylized monthly climate regime by fitting a sine wave assuming the extremes are jan and july ####
 
-## Stretch a sin wave over 12 months with specified low and high
+## Function to stretch a sin wave over 12 months with specified low and high
 clim_cycle = function(jan, jul) {
   full_cycle_rad = 2*pi
   x = seq(from=0,to=full_cycle_rad,length.out=13)[1:12]
@@ -163,6 +104,8 @@ clim_cycle = function(jan, jul) {
   cycle = cycle*amplitude + jul
 }
 
+
+####### For each climate zone, output the sylized monthly climate (dput) to paste into the definition of the alternate climate regimes (in script 01b_prep_water_balance_inputs.R)
 
 #### Make zone 4, desert climate ####
 
@@ -221,7 +164,7 @@ dput(z11_ppt)
 
 
 
-#### Focal zone (Sierra Nevada)
+#### Focal zone (Sierra Nevada): values from computing the mean for each month across the study landscape
 
 zfoc_tmin = structure(list(tmin.01 = -2.41072513124655, tmin.02 = -2.09452284281255, 
                            tmin.03 = -0.928372148313223, tmin.04 = 1.00936144375414, 
@@ -243,6 +186,8 @@ zfoc_ppt = structure(list(ppt.01 = 199.006025727205, ppt.02 = 179.143073337826,
                           ppt.12 = 172.168588665293), row.names = c(NA, -1L), class = "data.frame") %>% unname() %>% as.numeric
 
 
+
+#### Plot these in a multi-panel climatograph figure ####
 
 #### Compile into a data frame for plotting
 
@@ -295,43 +240,4 @@ g = ggplot(clim,aes(x=month,y=ppt, group=1)) +
 png(paste0("figures/climatographs.png"), width = 1400,height = 1000, res=250)
 g
 dev.off()
-
-
-
-
-
-
-
-
-# 
-# #### Filtering ####
-# 
-# ## How much flexibility to grant in each variable?
-# # 10% of the precip range
-# ppt_flex = (cellStats(ppt_mean,stat="max") - cellStats(ppt_mean,stat="min"))*0.1
-# 
-# # 10% of the temperature range
-# temp_flex = (cellStats(temp_mean,stat="max") - cellStats(temp_mean,stat="min"))*0.1
-# 
-# 
-# ## Areas with CA precip&temp but low seasonality
-# ppt_match = (ppt_mean > (120-ppt_flex)) & (ppt_mean < (120+ppt_flex))
-# temp_match = (temp_mean > (10-temp_flex)) & (temp_mean < (10+temp_flex))
-# mean_match = ppt_match & temp_match
-# match = mean_match & ppt_cv < 0.2
-# 
-# 
-# writeRaster(match,"/home/derek/gis/Climate/worldclim/summarized/testing_match_temporary.tif")
-# 
-# 
-# 
-# 
-
-
-
-
-
-
-
-
 

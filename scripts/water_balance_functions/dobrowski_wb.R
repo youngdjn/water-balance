@@ -1,17 +1,17 @@
-### Compute Dobrowski water balance for a set of points
-### This is the script published by Dobrowski et al. (2013), with additions by the authors of the submitted GCB manuscript at the end following the separator (######).
+### Functions to compute Dobrowski water balance for a set of points
+### This is a modification of the script published by Dobrowski et al. (2013) (original author: Alan Swanson 2012), including additions (wrapper functions to facilitate calling the Dobrowski functions to compute climate normals) by the authors of the Young et al. 2021 GEB manuscript at the end following the separator (######).
+### The only function that needs to be called from outside this script is run_dob_wb (the final function defined herein). All the rest are called by that function.
+### For the GEB analysis, the run_dob_wb function is called from the script scripts/01_run_water_balance.R
 
-
-
-# This script contains 4 functions used to model ET0 and water balance:
+# Defined first are the modified Dobrowski-published functions used to model ET0 and water balance:
 # 1. 'snowmod' estimates snowfall and snowpack and net moisture input as a function of temperature, precip, and existing
-#   snowpack.  It also outputs a vector of albedo values, generally 0.2 if there is no snow, or 0.8 if there is snow.
+#    snowpack.  It also outputs a vector of albedo values, generally 0.2 if there is no snow, or 0.8 if there is snow.
 # 2. 'monthlyETO' for calculating monthly reference evapotranspiration
 # 3. 'dailyET0' for calculating daily reference evapotranspiration
 # 4. 'aetmod' estimates actual et, deficit, soil moisture and runoff as a function of moisture input, existing
-#   soil moisture, and soil water capacity. 
+#    soil moisture, and soil water capacity. 
 #
-# Author: Alan Swanson 2012
+# 
 ###############################################################################
 
 snowmod <- function(tmean,ppt,radiation=NULL,snowpack_prev=NULL,albedo=0.23,albedo_snow=0.23){  # albedo_snow was originally 0.8
@@ -62,7 +62,8 @@ monthlyET0 <- function(radiation,rad.nldas,tmax,tmin,wind,lat,elev,dpt,tmean_pre
   # modification which adjusts stomatal conductance downwards at temperatures below 5 C.
   #
   # Arguments:
-  # radiation: vector of monthly average shortwave radiation in MJ/m^2/day
+  # radiation: vector of monthly fine-scale topographically-modified average shortwave radiation in MJ/m^2/day
+  # radiation.nldas: vector of monthly coarse-scale (NLDAS) average shortwave radiation in MJ/m^2/day
   # tmax, tmin: vectors of monthly average maximum and minimum temperatures in C, 
   # wind: vector of monthly average wind speed in m/s at 10m above ground, 
   # tmean_prev: vector of mean temp for the previous month, 
@@ -117,7 +118,7 @@ monthlyET0 <- function(radiation,rad.nldas,tmax,tmin,wind,lat,elev,dpt,tmean_pre
   es <- 0.6108*exp(tmin*17.27/(tmin+237.3))/2+0.6108*exp(tmax*17.27/(tmax+237.3))/2     
   ea <- 0.6108*exp((dpt)*17.27/((dpt)+237.3))
   vpd <- es - ea
-  vpd[vpd<0] <- 0    # added because this can be negative if dewpoint temperature is greater than mean temp (implying vapor pressure greater than saturation).
+  vpd[vpd<0] <- 0    # added because this can be negative if dewpoint temperature is greater than mean temp (implying vapor pressure greater than saturation): needed for some of the cold Koppen climate scenarios
   
   # delta - Slope of the saturation vapor pressure vs. air temperature curve at the average hourly air temperature 
   delta  <- (4098 * es)/(tmean + 237.3)^2  
@@ -128,7 +129,7 @@ monthlyET0 <- function(radiation,rad.nldas,tmax,tmin,wind,lat,elev,dpt,tmean_pre
   gamma <- cp*P/(0.622*lambda) # Psychrometer constant (kPa C-1)
   pa <- P/(1.01*(tmean+273)*0.287) # mean air density at constant pressure
   
-  # Calculate potential max solar radiation or clear sky radiation	
+  # Calculate potential max solar radiation or clear sky radiation, not topographically modified	
   GSC=0.082      # MJ m -2 min-1 (solar constant)
   phi <- pi*lat/180 
   dr <- 1+0.033*cos(2*pi/365*DoY)      
@@ -140,10 +141,10 @@ monthlyET0 <- function(radiation,rad.nldas,tmax,tmin,wind,lat,elev,dpt,tmean_pre
   
   # radfraction is a measure of relative shortwave radiation, or of
   # possible radiation (cloudy vs. clear-sky)
-  radfraction <- rad.nldas/Rso
+  radfraction <- rad.nldas/Rso  # This is modified from the published Dobrowski method (which used radiation/Rso) so that we use the coarser-scale solar radiation input (NLDAS) that is less topographically-influenced because it is coarser-scale. Otherwise, north-facing slopes (which have lower radiation) are interpreted to be "cloudier" (lower radfraction) and thus have lower outgoing longwave radiation 
   radfraction[radfraction>1] <- 1
   
-  # longwave  and net radiation
+  # longwave and net radiation
   longw <- 4.903e-9*n_days*((tmax+273.15)^4+(tmin+273.15)^4)/2*(.34-.14*sqrt(ea))*(1.35*radfraction-.35)     
   netrad <- radiation*n_days*(1-albedo)-longw  
   
@@ -151,8 +152,6 @@ monthlyET0 <- function(radiation,rad.nldas,tmax,tmin,wind,lat,elev,dpt,tmean_pre
   et0 <- .408*((delta*(netrad-G))+(pa*cp*vpd/ra*3600*24*n_days))/(delta+gamma*(1+rs/ra))
   return(et0)
 } 
-
-
 
 
 aetmod <- function(et0,input,awc,soil_prev=NULL){
@@ -195,31 +194,13 @@ aetmod <- function(et0,input,awc,soil_prev=NULL){
   
 }
 
-
-monthlengths <- function()
-{
-  return(c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31))
-}
+############## From here down are additions by the authors of the 2021 GEB manuscript ##########
 
 
-
-
-
-############## From here down are additions by the authors of the GCB manuscript ##########
-
-
-
-
-
-##########################################
-### Run the Dobrowski methods
-
-
+### Wrapper function to run the Dobrowski methods
 ### This function combines the separate functions published by Dobrowski and returns AET, Def, and PET
-### This function is called by the function "run_dobr_wb". This function does not have to be called directly.
+### This function is called by the function "run_dobr_wb" (next function below). This function does not have to be called directly.
 dobr_wb <- function(snowpack_prev_init,tmean_prev_init,soil_prev_init,monthlist,T.m,P.m,R.m,R.nldas.m,Tmin.m,Tmax.m,wind.m,Tdew.m,L,E,S.max,pet.mult) {
-  
-  
   
   snowpack_prev_cur <- snowpack_prev_init
   tmean_prev_cur <- tmean_prev_init
@@ -259,12 +240,22 @@ dobr_wb <- function(snowpack_prev_init,tmean_prev_init,soil_prev_init,monthlist,
 
 
 
-
-
 ## This function takes the 12 months from Jan to Dec of each monthly clim var.
 ## The data are intended to represent climate normals
-## The script replicates the 12-months time series three times in order to provide sufficient spin-up
+## The script replicates the 12-months time series three times and runs them in series in order to provide sufficient spin-up
 run_dob_wb <- function(T.m,P.m,R.m,R.nldas.m,Tmin.m,Tmax.m,wind.m,Tdew.m,L,E,S.max,pet.mult=1) {
+  
+  ## Inputs (each should be a vector of length 12, with one value for each month from Jan to Dec:
+  #		T.m, Tmin.m, Tmax.m		monthly mean, min, max temperature (degrees C)
+  #   Tdew.m   monthly mean dewpoint temperature (degrees C)
+  #		P.m		monthly precipitation (mm)
+  #   R.m   fine-scale topographically-modified average shortwave radiation in MJ/m^2/day, computed as described by Dobrowski et al. 2013
+  #   R.nldas.m:   coarse-scale (NLDAS) average shortwave radiation in MJ/m^2/day
+  #   wind.m    monthly average wind speed in m/s at 10m above ground
+  #   E    elevation (m)
+  #   L    latitude (degress)
+  #   S.max    soil water holding capacity (mm)
+  #   pet.mult    PET coefficient
   
   
   if(ncol(T.m) != 12) { error("You must supply 12 months of climate data.")}
@@ -302,23 +293,3 @@ run_dob_wb <- function(T.m,P.m,R.m,R.nldas.m,Tmin.m,Tmax.m,wind.m,Tdew.m,L,E,S.m
 }
 
 
-# results <- NA
-# 
-# for(i in 1:150) {
-# 
-#   et0 <- i
-# 
-#   soil_prev <- 150
-#   input <- i
-#   awc <- 150
-#   
-#   soildrawdown <- soil_prev*(1-exp(-(et0-input)/awc))	# this is the net change in soil moisture (neg)
-#   aet <- pmin(input + soildrawdown,et0)
-#   def <- et0 - aet
-#   soil <- soil_prev-soildrawdown
-#   runoff <- 0
-#   
-#   results[i] <- aet
-# 
-# }
-# 

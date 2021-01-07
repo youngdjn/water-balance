@@ -1,3 +1,5 @@
+# Make the hypothetical PET scaling plots (Fig. 1)
+
 library(ggplot2)
 library(viridis)
 library(gridExtra)
@@ -62,36 +64,3 @@ pc <- ggplot(d,aes(Crop.coefficient,Deficit)) +
 Cairo(file="figures/Fig1.png",width=1200,height=500,res=200)
 plot_grid(pa,pb,pc,nrow=1,rel_widths=c(1,1,1.55))
 dev.off()
-
-# 
-# # scenario: water input
-# 
-# 
-# d <- read.csv("water.csv",header=TRUE,stringsAsFactors=FALSE)
-# #d$water <- reorder(d$water,c(1,2,3,1,2,3))
-# d$water.in <- as.numeric(d$water)
-# d$water <- as.factor(d$water.input)
-# d$water <- reorder(d$water,c(1,2,3,1,2,3))
-# 
-# d$scenario <- reorder(d$scenario,c(1,1,1,2,2,2))
-# 
-# # Plot PET
-# ggplot(d,aes(scenario,PET,fill=water)) +
-#   geom_bar(position=position_dodge(),stat="identity") +
-#   geom_errorbar(position=position_dodge(),aes(y=water.in,ymax=water.in,ymin=water.in),width=0.9,colour="blue",linetype=2,size=1) +
-#   scale_y_continuous(limits=c(0,8),breaks=c(0,2,4,6,8)) +
-#   scale_fill_brewer(palette="Set2") + theme(text = element_text(size=20)) +
-#   scale_x_discrete(drop=FALSE) +
-#   xlab("Scenario") +
-#   ggtitle("PET")
-# 
-# # Plot AET
-# ggplot(d,aes(scenario,AET,fill=water)) + geom_bar(position=position_dodge(),stat="identity") + geom_errorbar(position=position_dodge(),aes(y=water.in,ymax=water.in,ymin=water.in),width=0.9,colour="blue",linetype=2,size=1) + scale_y_continuous(limits=c(0,8),breaks=c(0,2,4,6,8)) + scale_fill_brewer(palette="Set2") + theme(text = element_text(size=20)) + scale_x_discrete(drop=FALSE) + xlab("Scenario")
-# 
-# # Plot Deficit
-# ggplot(d,aes(scenario,Deficit,fill=water)) + geom_bar(position=position_dodge(),stat="identity") + scale_y_continuous(limits=c(0,8),breaks=c(0,2,4,6,8)) + scale_fill_brewer(palette="Set2") + theme(text = element_text(size=20)) + scale_x_discrete(drop=FALSE) + xlab("Scenario")
-# 
-# 
-# library(gridExtra)
-# 
-# grid.arrange

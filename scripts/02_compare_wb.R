@@ -1,4 +1,4 @@
-# For each climate scenario and water balance model (Dobrowski and Thornthwaite), compare the model based on PET coef = 0.25 to the one based on PET coef = 1.00 and produce the mapped water balance figure and heatmap comparison figures
+# For each climate scenario, compare the water balance outputs based on PET coef = 0.25 to the outputs based on PET coef = 1.00 and produce the mapped water balance figure and "heatmap" comparison figures
 
 library(raster)
 library(sf)
@@ -8,6 +8,8 @@ library(viridis)
 library(ggthemes)
 library(gridExtra)
 
+# Load wb input and output data rasters
+# Base is Tuolumne; others are the other climate zones
 d_base = brick("data/wb_output/rasters/base.grd")
 d_z04 = brick("data/wb_output/rasters/z04.grd")
 d_z07 = brick("data/wb_output/rasters/z07.grd")
@@ -15,6 +17,7 @@ d_z11 = brick("data/wb_output/rasters/z11.grd")
 d_z14 = brick("data/wb_output/rasters/z14.grd")
 d_z29 = brick("data/wb_output/rasters/z29.grd")
 
+# Convert to data frame
 d_base = d_base %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
   mutate(scenario = "base")
 d_z04 = d_z04 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
@@ -28,49 +31,45 @@ d_z14 = d_z14 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(331
 d_z29 = d_z29 %>% as("SpatialPointsDataFrame") %>% as("sf") %>% st_transform(3310) %>%
   mutate(scenario = "z29")
 
+# combine all into a large data frame
 d_orig = rbind(d_base,d_z04,d_z07,d_z11,d_z14,d_z29)
-
 d_orig$x = st_coordinates(d_orig)[,1]
 d_orig$y = st_coordinates(d_orig)[,2]
 
-## Compute differences between cc levels
+
+## Convenience functions
+
+# Rescale a vector of values between 0 and 1
 rescale_01 = function(x) {
   return(rescale(x,to=c(0,1)))
 }
 
+# Rescale a vector of values between -0.5 and 0.5
 rescale_55 = function(x) {
   return(rescale(x,to=c(-0.5,.5)))
 }
 
 
+## Compute differences in water balance predictions between pet coefficient assumptions
+# Columns ending in cc100 and cc025 indicate water balance values modeled assuming a PET coefficient (or crop coefficient, "cc") of 1.00 and 0.25 respectively.
+
 d = d_orig %>%
   rename(dob_aet100 = AET.Dobr.cc100,
          dob_aet025 = AET.Dobr.cc025,
          dob_cwd100 = Deficit.Dobr.cc100,
-         dob_cwd025 = Deficit.Dobr.cc025,
-         # wil_aet100 = AET.PT.STD.Wil150mm,
-         # wil_aet025 = AET.PT.cc025.Wil150mm,
-         # wil_cwd100 = Deficit.PT.STD.Wil150mm,
-         # wil_cwd025 = Deficit.PT.cc025.Wil150mm) %>%
-  ) %>%
+         dob_cwd025 = Deficit.Dobr.cc025) %>%
   mutate(across(contains("_cwd"), ~ifelse(.<0.1,0,.))) %>%
   group_by(scenario) %>%
   # rescale AET and CWD (and solar exposure) so that they are stretched from 0 to 1
-  mutate_at(vars(starts_with("dob_")), funs(scaled = rescale_01)) %>% #, starts_with("wil_")
+  mutate_at(vars(starts_with("dob_")), funs(scaled = rescale_01)) %>%
   ungroup() %>%
   mutate(rad.03_scaled=rescale(rad.03, to=c(0,1))) %>%
+  # compute the difference between the scaled values
   mutate(diff_dob_aet = dob_aet100_scaled - dob_aet025_scaled,
-         diff_dob_cwd = dob_cwd100_scaled - dob_cwd025_scaled,
-         # diff_wil_aet = wil_aet100_scaled - wil_aet025_scaled,
-         # diff_wil_cwd = wil_cwd100_scaled - wil_cwd025_scaled) %>%
-  ) #%>%
-  # # remove model cells that didn't run
-  # filter(wil_aet100 > -1 & wil_aet025 > -1)
+         diff_dob_cwd = dob_cwd100_scaled - dob_cwd025_scaled)
 
 
-
-### Within each group, scale the AET and CWD differences so they span 0 to 1
-
+### Within each group, scale the AET and CWD differences so they span -0.5 to 0.5
 d = d %>%
   group_by(scenario) %>%
   mutate(diff_dob_aet = rescale_55(diff_dob_aet),
@@ -79,9 +78,7 @@ d = d %>%
 
 
 
-### Make a 6-panel plot of AET and CWD for each method (and each scenario)
-
-
+### Make a 6-panel plot of AET and CWD for each method (and each climate scenario): Fig 3 and S6-10
 mapfun <- function(d,column,title,scale.limits=NULL, colorscale, colorscale_dir) {
   
   if(colorscale == "magma") {
@@ -109,7 +106,6 @@ mapfun <- function(d,column,title,scale.limits=NULL, colorscale, colorscale_dir)
     scale_x_continuous(limit=c(-56000,59000))
   
   return(p)
-  
 }
 
 scenarios = unique(d$scenario)
@@ -118,7 +114,6 @@ for(scen in scenarios) {
 
   d_plot = d %>%
     filter(scenario == scen)
-    # remove model cells that didn't run
   
   # Dobrowski model plots
   a <- ggplotGrob(mapfun(d_plot,column = "dob_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
@@ -132,38 +127,10 @@ for(scen in scenarios) {
   png(paste0("figures/map_wb/dob_",scen,".png"), width = 3300,height = 2000, res=250)
   grid.arrange(b,f,a,e,c,g,ncol=2)
   dev.off()
-  
-  # # Wilmott model plots
-  # a <- ggplotGrob(mapfun(d_plot,column = "wil_aet025", colorscale = "viridis", colorscale_dir = -1, title = "c) AET (PET coefficient = 0.25)"))
-  # b <- ggplotGrob(mapfun(d_plot,column = "wil_aet100", colorscale = "viridis", colorscale_dir = -1, title = "a) AET (PET coefficient = 1.00)"))
-  # c <- ggplotGrob(mapfun(d_plot,column = "diff_wil_aet", colorscale = "magma", colorscale_dir = 1, title = "e) AET difference"))
-  # 
-  # e <- ggplotGrob(mapfun(d_plot,column = "wil_cwd025", colorscale = "viridis", colorscale_dir = 1, title = "d) CWD (PET coefficient = 0.25)"))
-  # f <- ggplotGrob(mapfun(d_plot,column = "wil_cwd100", colorscale = "viridis", colorscale_dir = 1, title = "b) CWD (PET coefficient = 1.00)"))
-  # g <- ggplotGrob(mapfun(d_plot,column = "diff_wil_cwd", colorscale = "magma", colorscale_dir = 1, title = "f) CWD difference"))
-  # 
-  # png(paste0("figures/map_wb/wil_",scen,".png"), width = 3300,height = 2000, res=250)
-  # grid.arrange(b,f,a,e,c,g,ncol=2)
-  # dev.off()
 }
 
 
-
-### Manual exploration
-## In Z04, AET 1.00, how correlated with precip
-d_foc = d %>%
-  filter(scenario == "z04")
-
-plot(d_foc$dob_aet100, d_foc$ppt.04)
-
-## In z11, why is relative difference not capturing real difference?
-d_foc = d %>%
-  filter(scenario == "z11") %>%
-  select(starts_with("dob_cwd"))
-
-
-
-### Plot heatmap of differences by elev and rad
+### Plot heatmap of differences by elev and rad (Fig 5 and S5)
 
 heatmapfun <- function(d,columns,scale.limits=NULL, scenario) {
   
@@ -190,15 +157,14 @@ heatmapfun <- function(d,columns,scale.limits=NULL, scenario) {
     theme(strip.text=element_text(size=16),strip.background=element_blank(), legend.title=element_text(size=14))
 }
 
-## bin it myself and require a minimum number of pixels per tile
 
-elev_breaks = seq(min(d$elev),max(d$elev),length.out=6)
-elev_breaks = seq(from=0,to=4000,length.out = 6) # manual
+## bin it and require a minimum number of pixels per tile
+elev_breaks = seq(from=0,to=4000,length.out = 6)
 elev_mids = elev_breaks[1:(length(elev_breaks)-1)] + 0.5*(elev_breaks[2]-elev_breaks[1])
 rad_breaks = seq(min(d$rad.03_scaled),max(d$rad.03_scaled),length.out=6)
 rad_mids = rad_breaks[1:(length(rad_breaks)-1)] + 0.5*(rad_breaks[2]-rad_breaks[1])
 
-
+## Summarize data in bins and plot
 prep_plot_scenario = function(d,scen) {
 
   d_plot = d %>%
@@ -226,6 +192,7 @@ prep_plot_scenario = function(d,scen) {
   return(d_plot)
 }
 
+## Actually make the heatmaps
 d_plot = prep_plot_scenario(d,scen="base")
 a <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "Base"))
 
@@ -249,7 +216,8 @@ png(paste0("figures/heatmap_diff/dob_all.png"), width = 1700,height = 5000, res=
 grid.arrange(a,b,c,e,f,g,ncol=1)
 dev.off()
 
-### Make a base Dobrowski and Wilmott figures
+
+### Make a standalone base figure (Fig 5)
 
 d_plot = prep_plot_scenario(d,scen="base")
 g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = ""))
@@ -257,13 +225,5 @@ g <- ggplotGrob(heatmapfun(d_plot,c("diff_dob_aet","diff_dob_cwd"), scenario = "
 png(paste0("figures/heatmap_diff/dob_base.png"), width = 2000,height = 1000, res=320)
 plot(g)
 dev.off()
-
-# 
-# d_plot = prep_plot_scenario(d,scen="base")
-# g <- ggplotGrob(heatmapfun(d_plot,c("diff_wil_aet","diff_wil_cwd"), scenario = ""))
-# 
-# png(paste0("figures/heatmap_diff/wil_base.png"), width = 1800,height = 1000, res=250)
-# plot(g)
-# dev.off()
 
 
