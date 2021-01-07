@@ -1,5 +1,5 @@
 # Water balance modeling and analysis scripts and data
-Scripts and data supporting XXXXX et al. 2021 Inherent assumptions regarding vegetation physiology affect the utility of climatic water balance for ecological inference. Global Ecology and Biogeography.
+Scripts and data supporting XXXXX et al. 2021. Inherent assumptions regarding vegetation physiology affect the utility of climatic water balance for ecological inference. Global Ecology and Biogeography.
 
 This includes scripts for modeling water balance as described in the paper as well as for all downstream analyses (comparison of modeled water balance values between different PET coefficient assumptions; distribution models) and figures
 
