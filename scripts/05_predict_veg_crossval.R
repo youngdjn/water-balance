@@ -1,6 +1,10 @@
 # Use computed water balance values to predict vegetation distributions across the study landscape, and compute model fit/validation and agreement for 1000 iterations of different training data partitions
 # Note that throughout this script, variables and columns that end in "025" and "100" refer to PET coefficient 0.25 and 1.00
 
+### Specify how many cross-validation iterations to run for. If 1, no cross-validation, just a single fit. Need to set to 1 to make Fig. 6
+cross_validation_iterations = 1
+
+
 library(raster)
 library(sf)
 library(tidyverse)
@@ -57,14 +61,19 @@ d_mod_orig = d_mod
 
 # data frame to store model fit stats
 veg_fits_main_overall = data.frame()
+d_eval_presab = data.frame()
 
-for(k in 1:1000) { # takes ~8 hours on a recent laptop
+for(k in 1:cross_validation_iterations) { # takes ~8 hours on a recent laptop
 
-            # random offsets to use for the grid of training data locations
-            offsets = runif(2, min=0,max=10000)
-  
             # make a grid of training data locations (call them `bboxes` due to a vestige of an older approach)
-            grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE, offset = offsets)
+            if(cross_validation_iterations == 1) { # not doing cross-validation, so no need to randomly offset training points
+              grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE)
+            } else {
+              # random offsets to use for the grid of training data locations. a different set of offsets for each iteration
+              offsets = runif(2, min=0,max=10000)
+              grid = st_make_grid(tuol_mask %>% st_transform(3310), cellsize=10000,what="corners",square = FALSE, offset = offsets)
+            }
+  
             plots = grid %>% st_buffer(2000) %>% st_as_sf
             bboxes = plots
             
@@ -389,3 +398,227 @@ table3 = k_pub %>%
   select(vegtype, auc_ppt, auc_ptr, tss_ppt_100, tss_ppt_025, tss_pptr_100, tss_pptr_025)
 
 write_csv(table3,"tables/Table3_veg_fits_ppt_crossval_summ.csv")
+
+
+
+
+
+##### Plot maps of predictions ####
+
+if(cross_validation_iterations == 1) {
+
+  
+  #### Presence-absence predictions (and actual vegetation data) maps (Fig. 6)
+  
+  
+  d_plot_pre = d_eval_presab %>%
+    mutate(presab_summ = recode(presab_summ, high = "1.00 only",
+                                low = "0.25 only",
+                                both = "Both",
+                                neither = "Neither")) %>%
+    mutate(presab_summ = factor(presab_summ, levels=c("0.25 only","Both","1.00 only","Neither")))
+  
+  
+  map_preds = function(d_plot, title, legend) {
+    
+    p <- ggplot(d_plot) +
+      geom_raster(aes(x=x,y=y,fill=presab_summ)) +
+      coord_equal() +
+      theme_map() +
+      theme(legend.position="right") +
+      #theme(legend.title=element_blank()) +
+      theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+      theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+      theme(panel.spacing=unit(1,"lines")) +
+      theme(panel.border=element_rect(fill=NA)) +
+      theme(legend.text=element_text(size=8)) +
+      theme(plot.title = element_text(size=9)) +
+      labs(title=title) +
+      #theme(plot.title=element_text(hjust=0.5,size=12)) +
+      #scale_x_continuous(limit=c(-55000,60000)) +
+      scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted")
+    
+    if(!legend) {
+      p = p + theme(legend.position = "none")
+    }
+    
+    return(p) 
+    
+  }
+  
+  d_plot = d_plot_pre %>%
+    filter(clim_metric == "dob",
+           vegtype == "mch")
+  p2 = map_preds(d_plot, title = "b) Predictions: montane chaparral", legend=FALSE)
+  
+  d_plot = d_plot_pre %>%
+    filter(clim_metric == "dob",
+           vegtype == "mhw")
+  p3 = map_preds(d_plot, title = "c) Predictions: montane hardwoods", legend=TRUE)
+  
+  d_plot = d_plot_pre %>%
+    filter(clim_metric == "dob",
+           vegtype == "smc")
+  p4 = map_preds(d_plot, title = "d) Predictions: Sierra mixed-conifer", legend=FALSE)
+  
+  
+  
+  #### Map of the 3 focal veg types
+  
+  d_plot = d %>%
+    filter(cv_text %in% c("MCH","MHW","SMC")) %>%
+    mutate(cv_text = recode(cv_text,SMC = "Sierra\nmixed-conifer",MHW = "Montane\nhardwoods",MCH = "Montane\nchaparral")) %>%
+    mutate(cv_text = factor(cv_text,levels=c("Montane\nchaparral","Montane\nhardwoods","Sierra\nmixed-conifer")))
+  
+  
+  p1 = ggplot(d_plot) +
+    geom_sf(data = tuol_mask, fill="grey90", color=NA) +
+    geom_tile(aes(fill=cv_text, x=x,y=y)) +
+    #coord_equal() +
+    theme_map() +
+    geom_sf(data=bboxes,fill=NA,color="grey20",size=0.25) +
+    #geom_sf(data = tuol_mask, fill=NA, color="grey20") +
+    #scale_fill_viridis(na.value="white",discrete=TRUE,option="inferno",name="Vegetation type") +
+    theme(legend.position="right") +
+    theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+    theme(panel.border=element_rect(fill=NA)) +
+    theme(strip.text=element_text(size=12),strip.background=element_blank()) +
+    theme(panel.spacing=unit(1,"lines")) +
+    #theme(panel.border=element_rect(fill=NA, color=NA)) +
+    theme(legend.text=element_text(size=9),legend.title=element_text(size=9)) +
+    scale_fill_manual(values=c("#22BBD3","#5C6070", "#C1495D","grey50"), name = "Vegetation type") +
+    labs(title="a) Actual vegetation distribution") +
+    theme(legend.text = element_text(margin = margin(t = 2,b=2, unit = "pt"),size=8)) +
+    theme(plot.title = element_text(size=9))
+  
+  
+  library(gridExtra)
+  
+  layout = rbind(c(1,1,1),
+                 c(NA,2,NA),
+                 c(NA,3,3),
+                 c(NA,4,NA))
+  
+  png("figures/veg_pred/veg_pred_main.png",res=200, width = 1000, height = 1000)
+  grid.arrange(p1,p2,p3,p4,
+               ncol = 3,
+               heights = c(1,1,1,1),
+               widths = c(0.03,1,0.375),
+               layout_matrix = layout)
+  dev.off()
+  
+  
+  
+  
+  
+  
+  #### Probability-based maps (Fig. S11)
+  
+  
+  ### General data prep
+  
+  d_plot_pre = d_eval_presab %>%
+    mutate(presab_summ = recode(presab_summ, high = "1.00 only",
+                                low = "0.25 only",
+                                both = "Both",
+                                neither = "Neither")) %>%
+    mutate(presab_summ = factor(presab_summ, levels=c("0.25 only","Both","1.00 only","Neither"))) %>%
+    filter(clim_metric == "dob")
+  
+  ## pull in precip
+  d_ppt = d_eval_long %>%
+    filter(clim_metric %in% c("tempppt","temppptr")) %>%
+    rename(cc_assumption = "clim_metric",
+           prob_presence = "prob") %>%
+    mutate(cc_assumption = as.character(cc_assumption))
+  
+  d_plot_pre = d_plot_pre %>%
+    pivot_longer(cols=c(prob_100,prob_025), names_to = "cc_assumption", values_to = "prob_presence" ) %>%
+    bind_rows(d_ppt) %>%
+    mutate(cc_assumption = recode(cc_assumption, "prob_025" = "Water balance: PET coefficient = 0.25",
+                                  "prob_100" = "Water balance: PET coefficient = 1.00",
+                                  "tempppt" = "Temperature and precipitation",
+                                  "temppptr" = "Temperature, precip., solar rad., and interactions")) %>%
+    mutate(cc_assumption = factor(cc_assumption,levels = c("Water balance: PET coefficient = 0.25", "Water balance: PET coefficient = 1.00", "Temperature and precipitation", "Temperature, precip., solar rad., and interactions")))
+  
+  
+  ## Plot for montane chaparral
+  d_plot = d_plot_pre %>%
+    filter(vegtype == "mch")
+  
+  p_mch <- ggplot(d_plot) +
+    geom_raster(aes(x=x,y=y,fill=prob_presence)) +
+    coord_equal() +
+    theme_map() +
+    theme(legend.position="right") +
+    #theme(legend.title=element_blank()) +
+    theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+    theme(strip.text=element_text(size=11),strip.background=element_blank()) +
+    theme(panel.spacing=unit(1,"lines")) +
+    theme(panel.border=element_rect(fill=NA)) +
+    theme(legend.text=element_text(size=8)) +
+    theme(plot.title=element_text(size=16,hjust = 0.5)) +
+    labs(title="Montane chaparral") +
+    #theme(plot.title=element_text(hjust=0.5,size=12)) +
+    #scale_x_continuous(limit=c(-55000,60000)) +
+    #scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted") +
+    scale_fill_viridis(limits=c(0.15,0.67), name="Prob.\n presence") +
+    facet_wrap(~cc_assumption)
+  
+  
+  ## Plot for montane hardwoods
+  d_plot = d_plot_pre %>%
+    filter(vegtype == "mhw")
+  
+  p_mhw <- ggplot(d_plot) +
+    geom_raster(aes(x=x,y=y,fill=prob_presence)) +
+    coord_equal() +
+    theme_map() +
+    theme(legend.position="right") +
+    #theme(legend.title=element_blank()) +
+    theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+    theme(strip.text=element_text(size=11),strip.background=element_blank()) +
+    theme(panel.spacing=unit(1,"lines")) +
+    theme(panel.border=element_rect(fill=NA)) +
+    theme(legend.text=element_text(size=8)) +
+    #theme(plot.title = element_text(size=9)) +
+    labs(title="Montane hardwoods") +
+    theme(plot.title=element_text(size=16,hjust = 0.5)) +
+    #theme(plot.title=element_text(hjust=0.5,size=12)) +
+    #scale_x_continuous(limit=c(-55000,60000)) +
+    #scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted") +
+    scale_fill_viridis(limits=c(0.15,0.99), name="Prob.\n presence") +
+    facet_wrap(~cc_assumption)
+  
+  
+  ## Plot for sierra mixed-conifer
+  d_plot = d_plot_pre %>%
+    filter(vegtype == "smc")
+  
+  p_smc <- ggplot(d_plot) +
+    geom_raster(aes(x=x,y=y,fill=prob_presence)) +
+    coord_equal() +
+    theme_map() +
+    theme(legend.position="right") +
+    #theme(legend.title=element_blank()) +
+    theme(panel.grid.major=element_line(colour="white"),panel.grid.minor=element_line(colour="white")) +
+    theme(strip.text=element_text(size=11),strip.background=element_blank()) +
+    theme(panel.spacing=unit(1,"lines")) +
+    theme(panel.border=element_rect(fill=NA)) +
+    theme(legend.text=element_text(size=8)) +
+    theme(plot.title=element_text(size=16,hjust = 0.5)) +
+    labs(title="Sierra mixed-conifer") +
+    #theme(plot.title=element_text(hjust=0.5,size=12)) +
+    #scale_x_continuous(limit=c(-55000,60000)) +
+    #scale_fill_manual(values = c("#264653", "#e9c46a", "#e76f51", "grey90"), name = "Presence predicted") +
+    scale_fill_viridis(limits=c(0.15,0.93), name="Prob.\n presence") +
+    facet_wrap(~cc_assumption)
+  
+  png("figures/veg_pred/veg_pred_prob.png",res=150, width = 1200, height = 1500)
+  grid.arrange(p_mch, p_mhw, p_smc,
+               ncol = 1)
+  dev.off()
+
+}
+
+

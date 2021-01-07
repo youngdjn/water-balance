@@ -1,5 +1,5 @@
 ### Functions to compute Dobrowski water balance for a set of points
-### This is a modification of the script published by Dobrowski et al. (2013) (original author: Alan Swanson 2012), including additions (wrapper functions to facilitate calling the Dobrowski functions to compute climate normals) by the authors of the Young et al. 2021 GEB manuscript at the end following the separator (######).
+### This is a modification of the script published by Dobrowski et al. (2013) (original author: Alan Swanson 2012), including additions (wrapper functions to facilitate calling the Dobrowski functions to compute climate normals) by the authors of the XXXXX et al. 2021 GEB manuscript at the end following the separator (######).
 ### The only function that needs to be called from outside this script is run_dob_wb (the final function defined herein). All the rest are called by that function.
 ### For the GEB analysis, the run_dob_wb function is called from the script scripts/01_run_water_balance.R
 
@@ -14,7 +14,7 @@
 # 
 ###############################################################################
 
-snowmod <- function(tmean,ppt,radiation=NULL,snowpack_prev=NULL,albedo=0.23,albedo_snow=0.23){  # albedo_snow was originally 0.8
+snowmod <- function(tmean,ppt,radiation=NULL,snowpack_prev=NULL,albedo=0.23,albedo_snow=0.8){  # albedo_snow was originally 0.8
   # This function computes monthly estimated snowfall and snowmelt. Output includes end-of-month snowpack,
   # water "input" (snowmelt plus rain), and albedo.
   # Arguments:

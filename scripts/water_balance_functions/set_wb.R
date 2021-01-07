@@ -7,7 +7,7 @@
 source("scripts/water_balance_functions/dobrowski_wb.R")
 
 # Constant defining number of days per month
-monthlengths = c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30)
+monthlengths = c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
 set_wb <- function(in.data, PET.methods, PET.mods, AET.methods) {
 
