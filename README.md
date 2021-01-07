@@ -22,19 +22,19 @@ This script (and the scripts it calls) implements a modification of the water ba
 For each climate scenario, compare the water balance outputs based on PET coef = 0.25 to the outputs based on PET coef = 1.00 and produce the mapped water balance figure (Fig. 3) and "heatmap" comparison figure (Fig. 5).
 
 ### scripts/03_summarize_gradient.R
-Summarize landscape water balance along an elevation gradient and across aspects (Fig. 4)
+Summarize landscape water balance along an elevation gradient and across aspects (Fig. 4).
 
 ### scripts/04_map_area.R
-Make a map of the study area and a vicinity map (Fig. 2)
+Make a map of the study area and a vicinity map (Fig. 2).
 
 ### scripts/05_predict_veg_crossval.R
-Use computed water balance values to predict vegetation distributions across the study landscape, and compute model fit/validation and agreement for 1000 (or other specified) iterations of different training data partitions. Map predictions (Fig. 6)
+Use computed water balance values to predict vegetation distributions across the study landscape, and compute model fit/validation and agreement for 1000 (or other specified) iterations of different training data partitions. Map predictions (Fig. 6).
 
 ### scripts/06_map_global_climate.R
-Summarize WorldClim temperature and precip in different Koppen climate zones and build stylized climate regimes
+Summarize WorldClim temperature and precip in different Koppen climate zones and build stylized climate regimes.
 
 ### scripts/07_pet_scaling_plots.R
-Make the hypothetical PET scaling plots (Fig. 1)
+Make the hypothetical PET scaling plots (Fig. 1).
 
 ## Data
 
