@@ -1,5 +1,5 @@
 ## Compute Dobrowski water balance values across the study landscape
-## But first, call a separate script ("scripts/01b_prep_water_balance_inputs.R") to prep the inputs in the correct format (from the original input variable dataset which is a multilayer raster), and to compute inputs for alternative stylized climate regimes
+## In doing this, it first calls a separate script ("scripts/01b_prep_water_balance_inputs.R") to prep the inputs in the correct format (from the original input variable dataset which is a multilayer raster), and to compute inputs for alternative stylized climate regimes
 
 ## Input values are provided as a raster with parameters named as follows (where 'm' is replaced with the month number):
 #		tmean.m, tmin.m, tmax.m		monthly mean, min, max temperature (degrees C)
