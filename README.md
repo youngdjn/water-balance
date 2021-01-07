@@ -1,5 +1,5 @@
 # Water balance modeling and analysis scripts and data
-Scripts and data supporting XXXXX et al. 2021 Inherent assumptions regarding vegetation physiology affect the utility of climatic water balance for ecological inference. Global Ecology and Biogeography
+Scripts and data supporting XXXXX et al. 2021 Inherent assumptions regarding vegetation physiology affect the utility of climatic water balance for ecological inference. Global Ecology and Biogeography.
 
 This includes scripts for modeling water balance as described in the paper as well as for all downstream analyses (comparison of modeled water balance values between different PET coefficient assumptions; distribution models) and figures
 
@@ -40,7 +40,7 @@ Make the hypothetical PET scaling plots (Fig. 1)
 
 Necessary input data (as described in the comments of each script that requires each data source) for the focal area of analysis are located in the `data` folder. This includes EVEG vegetation distribution data, climate and other abiotic environment data, study area perimeter, and cartographic basemap.
 
-## Modeling water balance for a new location
+## Modeling water balance for a new area
 
 These scripts can be adapted to model water balance using the Dobrowski method for a new location. There are two options for this.
 
@@ -48,4 +48,4 @@ These scripts can be adapted to model water balance using the Dobrowski method f
 
 2. Use the function `run_dob_wb()` defined in `scripts/water_balance_functions/dobrowski_wb.R`. This function takes vectors of monthly values of environmental input variables, as described in the header of the function. This wrapper function is set up to model *climatic normal* water balance (that is, you supply it 12 months of climate normal data, and it computes climatic normal water balance, not water balance for specific individual years). This is a wrapper function around the functions published by Dobrowski et al. (2013). The versions of the Dobworski water balance functions included in this repo include the modifications described in the XXXXX et al. (2021) GEB paper that this repository accompanies. 
 
-
+Both of these options will by default compute water balance two ways, one assuming a PET coefficient of 1.00 and one assuming a PET coefficient of 0.25.
