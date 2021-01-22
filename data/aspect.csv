@@ -1,0 +1,7 @@
+aspect,Crop coefficient,water,PET,AET,Deficit
+Low,High,-50,30,30,0
+Mid,High,-50,60,50,10
+High,High,-50,90,50,40
+Low,Low,-50,20,20,0
+Mid,Low,-50,40,40,0
+High,Low,-50,60,50,10

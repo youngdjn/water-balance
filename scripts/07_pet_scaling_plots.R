@@ -55,7 +55,7 @@ pc <- ggplot(d,aes(Crop.coefficient,Deficit)) +
   ylab("") +
   ggtitle("CWD") +
   scale_fill_viridis(name="Solar exposure",discrete=TRUE, begin=0.05, end=0.95) +
-  geom_hline(aes(color="Water input",yintercept = water),linetype=2,size=0.5) +
+  geom_hline(aes(color="Water availability",yintercept = water),linetype=2,size=0.5) +
   scale_color_manual(name="",values = c("blue"),) +
   theme_bw(8) +
   theme(plot.title = element_text(hjust = 0.5, size=8),
