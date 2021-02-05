@@ -61,6 +61,6 @@ pc <- ggplot(d,aes(Crop.coefficient,Deficit)) +
   theme(plot.title = element_text(hjust = 0.5, size=8),
         axis.text = element_text(size=7.5))
 
-Cairo(file="figures/Fig1.png",width=1200,height=500,res=200)
-plot_grid(pa,pb,pc,nrow=1,rel_widths=c(1,1,1.55))
+Cairo(file="figures/Fig1.png",width=3*1200,height=3*500,res=3*200)
+plot_grid(pa,pb,pc,nrow=1,rel_widths=c(1,1,1.65))
 dev.off()
